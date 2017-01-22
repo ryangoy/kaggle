@@ -23,8 +23,33 @@ def train_net(batch, labels):
     return
 
 def run():
-    
-    train_net()
+    num_images = 3000
+    # num_images = 3299
+    label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
+    # label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000, 3299]
+    label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
+    labels = [[1,0,0,0,0,0],
+              [0,1,0,0,0,0],
+              [0,0,1,0,0,0],
+              [0,0,0,1,0,0],
+              [0,0,0,0,1,0],
+              [0,0,0,0,0,1]]
+    y = []
+    y_index = []
+    for i in range(len(label_counts)):
+        y += [labels[i] for _ in range(label_counts[i])]
+        y_index += [i for _ in range(label_counts[i])]
+    y = np.array(y)
+
+    X = None
+    for i in range(num_images):
+        img = utils.load_image("./preprocessed_train/img_{0}label_{1}.jpg".format(i, y_index[i]))
+        img = img.reshape((1, 224, 224, 3))
+        if X == None:
+            X = img
+        else:
+            X = np.vstack((X, img))
+    train_net(X, y)
     return
 
 
