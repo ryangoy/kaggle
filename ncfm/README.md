@@ -6,3 +6,11 @@
 * apply affine transformation to the image and crop
 * gamma balance and color balance (anything to do with image standardization i.e. linearlization and normalization)
 * train a vgg16 network on labeled, processed training data 
+
+#### Other ideas: ####
+* account for the fact that some images are night / day
+* flip right side up
+* use information about similar [boats] (https://www.kaggle.com/anokas/the-nature-conservancy-fisheries-monitoring/finding-boatids)?
+* multiple fishes
+* sharpening
+* perspective (non-affine transforms)
