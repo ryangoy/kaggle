@@ -3,7 +3,7 @@ import tensorflow as tf
 import utils
 import numpy as np
 
-batch_size = 100
+batch_size = 30
 num_images = 3000
 # num_images = 3299
 label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
@@ -24,7 +24,8 @@ def train_net(batch, labels):
     train_mode = tf.placeholder(tf.bool)
 
     #vgg = VGG19()
-    vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
+    # vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
+    vgg = VGG19('./src/vgg19.npy')
     print "Building..."
     vgg.build(images, train_mode)
     print "Initializing variables"
@@ -34,15 +35,34 @@ def train_net(batch, labels):
     train = tf.train.GradientDescentOptimizer(0.0001).minimize(cost)
     print "Training..."
 
-    for i in range(num_images / batch_size):
+    for i in range(num_images // batch_size):
         sess.run(train, feed_dict={images: batch[batch_size*i:batch_size*(i+1)], 
                  true_out: labels[batch_size*i:batch_size*(i+1)], train_mode: True})
+
+    # prob = sess.run(vgg.prob, feed_dict={images: batch[:100], train_mode: False})
+    # print np.argmax(prob, axis=1)
+
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
     print "Done!"
 
+def test_net(batch):
+    sess = tf.Session()
+
+    images = tf.placeholder(tf.float32, [None, 224, 224, 3])
+    true_out = tf.placeholder(tf.float32, [None, 6])
+    train_mode = tf.placeholder(tf.bool)
+
+    vgg = VGG19('./test-save.npy')
+    print "Building..."
+    vgg.build(images, train_mode)
+    print "Initializing variables"
+    sess.run(tf.initialize_all_variables())
+
+    prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
+    print np.argmax(prob, axis=1)
+
 def load_data():
-    
     y = []
     y_index = []
     for i in range(len(label_counts)):
@@ -50,19 +70,22 @@ def load_data():
         y_index += [i for _ in range(label_counts[i])]
     y = np.array(y)
 
-    X = []
+    X = np.empty((num_images, 224, 224, 3))
     for i in range(num_images):
-        img = utils.load_image("/home/ryan/cs/kaggle/ncfm/preprocessed_train/img_{0}label_{1}.jpg".format(i, y_index[i]))
-        img = img.reshape((224, 224, 3))
-        X.append(img)
-        if i % 100 == 0 and i > 0:
+        img = utils.load_image("/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train/img_{0}label_{1}.jpg".format(i, y_index[i]))
+        img = img.reshape((1, 224, 224, 3))
+        X[i] = img
+        if i % 1000 == 0 and i > 0:
             print "Finished pre-processing " + str(i) + " images"
-    print np.array(X).shape
+    print X.shape
     print y.shape
-    return np.array(X), y
+    return X, y
 
 def run():
-    train_net(*load_data())
+    batch, labels = load_data()
+    train_net(batch, labels)
+    # test_net(batch[:100])
+
 
 
 if __name__ == '__main__':
