@@ -3,6 +3,18 @@ import tensorflow as tf
 import utils
 import numpy as np
 
+batch_size = 100
+num_images = 3000
+# num_images = 3299
+label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
+# label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000, 3299]
+label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
+labels = [[1,0,0,0,0,0],
+          [0,1,0,0,0,0],
+          [0,0,1,0,0,0],
+          [0,0,0,1,0,0],
+          [0,0,0,0,1,0],
+          [0,0,0,0,0,1]]
 
 def train_net(batch, labels):
     sess = tf.Session()
@@ -11,6 +23,7 @@ def train_net(batch, labels):
     true_out = tf.placeholder(tf.float32, [None, 6])
     train_mode = tf.placeholder(tf.bool)
 
+    #vgg = VGG19()
     vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
     print "Building..."
     vgg.build(images, train_mode)
@@ -20,23 +33,16 @@ def train_net(batch, labels):
     cost = tf.reduce_sum((vgg.prob - true_out) ** 2)
     train = tf.train.GradientDescentOptimizer(0.0001).minimize(cost)
     print "Training..."
-    sess.run(train, feed_dict={images: batch, true_out: labels, train_mode: True})
+
+    for i in range(num_images / batch_size):
+        sess.run(train, feed_dict={images: batch[batch_size*i:batch_size*(i+1)], 
+                 true_out: labels[batch_size*i:batch_size*(i+1)], train_mode: True})
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
     print "Done!"
 
 def load_data():
-    num_images = 3000
-    # num_images = 3299
-    label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
-    # label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000, 3299]
-    label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
-    labels = [[1,0,0,0,0,0],
-              [0,1,0,0,0,0],
-              [0,0,1,0,0,0],
-              [0,0,0,1,0,0],
-              [0,0,0,0,1,0],
-              [0,0,0,0,0,1]]
+    
     y = []
     y_index = []
     for i in range(len(label_counts)):
