@@ -4,7 +4,7 @@ import utils
 import numpy as np
 
 
-epochs = 5
+epochs = 10
 batch_size = 100
 
 num_images = 3000
@@ -54,12 +54,13 @@ def train_net(batch, labels):
     #     _, loss_val = sess.run([train, cross_entropy],
     #                        feed_dict={x: batch, y_: labels})
     #     print epoch, loss_val
-    
+
     # prob = sess.run(vgg.prob, feed_dict={images: batch[:100], train_mode: False})
     # print np.argmax(prob, axis=1)
 
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
+    sess.close()
     print "Done!"
 
 def test_net(batch):
@@ -76,7 +77,8 @@ def test_net(batch):
     sess.run(tf.initialize_all_variables())
 
     prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
-    print prob
+    sess.close()
+    print np.argmax(prob, axis=1)
 
 def load_data():
     y = []
@@ -100,8 +102,9 @@ def load_data():
 
 def run():
     batch, labels = load_data()
-    train_net(batch, labels)
-    # test_net(batch[:100])
+    #train_net(batch, labels)
+    test_net(batch[:100])
+    print np.argmax(labels[:100], axis=1)
 
 
 
