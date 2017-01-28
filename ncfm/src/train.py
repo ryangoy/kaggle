@@ -3,8 +3,10 @@ import tensorflow as tf
 import utils
 import numpy as np
 
+
 epochs = 5
 batch_size = 100
+
 num_images = 3000
 # num_images = 3299
 label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
@@ -35,12 +37,24 @@ def train_net(batch, labels):
     cost = tf.reduce_sum((vgg.prob - true_out) ** 2)
     train = tf.train.GradientDescentOptimizer(0.0001).minimize(cost)
     print "Training..."
+
     for epoch in range(epochs):
         for i in range(num_images // batch_size):
             sess.run(train, feed_dict={images: batch[batch_size*i:batch_size*(i+1)], 
                      true_out: labels[batch_size*i:batch_size*(i+1)], train_mode: True})
         print 'Finished epoch ' + str(epoch)
 
+
+
+    # for epoch in range(num_epochs):
+    #     for i in range(num_images // batch_size):
+    #         sess.run(train, feed_dict={images: batch[batch_size*i:batch_size*(i+1)], 
+    #                  true_out: labels[batch_size*i:batch_size*(i+1)], train_mode: True})
+    #     cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
+    #     _, loss_val = sess.run([train, cross_entropy],
+    #                        feed_dict={x: batch, y_: labels})
+    #     print epoch, loss_val
+    
     # prob = sess.run(vgg.prob, feed_dict={images: batch[:100], train_mode: False})
     # print np.argmax(prob, axis=1)
 
@@ -62,7 +76,7 @@ def test_net(batch):
     sess.run(tf.initialize_all_variables())
 
     prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
-    print np.argmax(prob, axis=1)
+    print prob
 
 def load_data():
     y = []
