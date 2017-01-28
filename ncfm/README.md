@@ -8,9 +8,11 @@
 * train a vgg16 network on labeled, processed training data 
 
 #### Other ideas: ####
-* account for the fact that some images are night / day
+* account for the fact that some images are night / day (RGB color normalization?)
 * flip right side up
 * use information about similar [boats] (https://www.kaggle.com/anokas/the-nature-conservancy-fisheries-monitoring/finding-boatids)?
 * multiple fishes
 * sharpening
 * perspective (non-affine transforms)
+* augment training set: RGB color shift, random scaling, random perspective warp, instead of flipping all images right side up (since this might be imperfect), flip all images vertically so there is exactly 50% right side up, 50% upside down
+
