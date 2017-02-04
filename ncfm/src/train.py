@@ -10,8 +10,7 @@ import time
 # Basic model parameters as external flags.
 FLAGS = None
 
-
-
+# placeholders initialize the size of the input and output
 def placeholder_inputs(batch_size):
     images_placeholder = tf.placeholder(tf.float32, 
         shape=[batch_size, FLAGS.width, FLAGS.height, FLAGS.channels])
@@ -19,6 +18,7 @@ def placeholder_inputs(batch_size):
     train_mode = tf.placeholder(tf.bool)
     return images_placeholder, labels_placeholder, train_mode
 
+# sess.run() uses feed_dicts to train
 def fill_feed_dict(step, train_mode, train_mode_pl,
     images, images_pl, labels=None, labels_pl=None):
 
@@ -31,7 +31,7 @@ def fill_feed_dict(step, train_mode, train_mode_pl,
 
     return feed_dict
 
-def loss(logits, labels):
+def loss_op(logits, labels):
   """Calculates the loss from the logits and the labels.
   Args:
     logits: Logits tensor, float - [batch_size, NUM_CLASSES].
@@ -39,12 +39,12 @@ def loss(logits, labels):
   Returns:
     loss: Loss tensor of type float.
   """
-  labels = tf.to_int64(labels)
+  labels = tf.cast(labels, tf.float32)
   #cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
   #    labels=labels, logits=logits, name='xentropy')
   #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
   l2_loss = (logits - labels) ** 2
-  return tf.reduce_sum(cross_entropy, name='l2_loss')
+  return tf.reduce_sum(l2_loss, name='l2_loss')
 
 def training(loss, learning_rate):
   """Sets up the training Ops.
@@ -69,33 +69,33 @@ def training(loss, learning_rate):
   train_op = optimizer.minimize(loss, global_step=global_step)
   return train_op
 
-def run_training(batch, labels):
+def run_training():
     
-    # initialize placeholders
-    images_placeholder, labels_placeholder, train_mode = placeholder_inputs(
-        FLAGS.batch_size)
+    # initialize placeholders, tm stands for train mode
+    images_pl, labels_pl, tm_pl = placeholder_inputs(FLAGS.batch_size)
 
     # load data
     images, labels = load_data()
+    num_images = images.shape[0]
 
     # create VGG19 model
     vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
-    vgg.build(images_placeholder, train_mode)
+    vgg.build(images_pl, tm_pl)
     logits = vgg.prob # set logits to the softmax output of the net
 
     # call the above methods to return the training optimizer
-    loss = loss(logits, labels_placeholder)
+    loss = loss_op(logits, labels_pl)
     train_op = training(loss, FLAGS.learning_rate)
 
-    # Add the Op to compare the logits to the labels during evaluation.
-    eval_correct = mnist.evaluation(logits, labels_placeholder)
+    # # Add the Op to compare the logits to the labels during evaluation.
+    # eval_correct = mnist.evaluation(logits, labels_placeholder)
 
     # for display purposes later
     summary = tf.summary.merge_all()
 
     # create a saver for training checkpoints
     saver = tf.train.Saver()
-
+    
     # begin session
     sess = tf.Session()
 
@@ -104,29 +104,28 @@ def run_training(batch, labels):
 
     # load pre-trained weights
     print "Initializing..."
-    sess.run(tf.initialize_all_variables())
-
-    # cost = tf.reduce_sum((vgg.prob - labels_placeholder) ** 2)
-    # train = tf.train.GradientDescentOptimizer(0.0001).minimize(cost)
+    sess.run(tf.global_variables_initializer())
 
     print "Training..."
     training_start_time = time.time()
+    step = 0
     for epoch in range(FLAGS.num_epochs):
         epoch_start_time = time.time()
-        for i in range(num_images // batch_size):
-            step_start_time = time.time()
-            feed_dict = fill_feed_dict(i, True, train_mode_pl, images,
-                images_placeholder, labels, labels_placeholder)
+        for i in range(num_images // FLAGS.batch_size):
+            step += 1
+            feed_dict = fill_feed_dict(i, True, tm_pl, images,
+                images_pl, labels, labels_pl)
             _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
-        
         # Write the summaries and print an overview fairly often.
-        if step % 100 == 0:
-            # Print status to stdout.
-            print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, training_start_time - time.time()))
-            # Update the events file.
-            summary_str = sess.run(summary, feed_dict=feed_dict)
-            summary_writer.add_summary(summary_str, step)
-            summary_writer.flush()
+            if step % 100 == 0:
+                # Print status to stdout.
+                print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
+                # Update the events file.
+                summary_str = sess.run(summary, feed_dict=feed_dict)
+                summary_writer.add_summary(summary_str, step)
+                summary_writer.flush()
+            elif step % 10 == 0:
+                print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
 
 
     print "Saving new model..."
@@ -172,14 +171,14 @@ def load_data():
 
     X = np.empty((num_images, 224, 224, 3))
     for i in range(num_images):
-        img = utils.load_image(path.join(FLAGS.images_path, "/img_{0}label_{1}.jpg".format(i, y_index[i])))
-        #img = utils.load_image("/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train/img_{0}label_{1}.jpg".format(i, y_index[i]))
+        img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+        
         img = img.reshape((1, 224, 224, 3))
         X[i] = img
         if i % 1000 == 0 and i > 0:
             print "Finished pre-processing " + str(i) + " images"
-    print X.shape
-    print y.shape
+    print "Loaded training images with shape {0}.".format(X.shape)
+    print "Loaded training labels with shape {0}.".format(y.shape)
     return X, y
 
 
@@ -208,6 +207,7 @@ if __name__ == '__main__':
         '--images_path',
         type=str,
         default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
+        #'/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train'
         help='Directory to put the input data.'
     )
     parser.add_argument(
@@ -235,13 +235,13 @@ if __name__ == '__main__':
         help='Width of input images in pixels.'
     )
     parser.add_argument(
-        '--epochs',
+        '--num_epochs',
         type=int,
         default=10,
         help='Number of epochs to run training for.'
     )
     parser.add_argument(
-        '--categories',
+        '--num_categories',
         type=int,
         default=6,
         help='Number of categories.'
