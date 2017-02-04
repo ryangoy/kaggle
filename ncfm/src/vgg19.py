@@ -163,7 +163,7 @@ class VGG19:
             data_dict[name][idx] = var_out
 
         np.save(npy_path, data_dict)
-        print("file saved", npy_path)
+        print "File saved at " + npy_path
         return npy_path
 
     def get_var_count(self):

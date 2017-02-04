@@ -133,22 +133,22 @@ def run_training():
     sess.close()
     print "Done!"
 
-# def test_net(batch):
-#     sess = tf.Session()
+def test_net(batch):
+    sess = tf.Session()
 
-#     images = tf.placeholder(tf.float32, [None, 224, 224, 3])
-#     true_out = tf.placeholder(tf.float32, [None, 6])
-#     train_mode = tf.placeholder(tf.bool)
+    images = tf.placeholder(tf.float32, [None, 224, 224, 3])
+    true_out = tf.placeholder(tf.float32, [None, 6])
+    train_mode = tf.placeholder(tf.bool)
 
-#     vgg = VGG19('./test-save.npy')
-#     print "Building..."
-#     vgg.build(images, train_mode)
-#     print "Initializing variables"
-#     sess.run(tf.initialize_all_variables())
+    vgg = VGG19('./test-save.npy')
+    print "Building..."
+    vgg.build(images, train_mode)
+    print "Initializing variables"
+    sess.run(tf.initialize_all_variables())
 
-#     prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
-#     sess.close()
-#     print np.argmax(prob, axis=1)
+    prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
+    sess.close()
+    print np.argmax(prob, axis=1)
 
 def load_data():
 
