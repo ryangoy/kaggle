@@ -13,7 +13,12 @@ import skimage.io
 FLAGS = None
 
 
-def load_data():
+
+def load_data(preloaded=False):
+    if preloaded:
+        X = np.load('samples.npy')
+        y = np.load('labels.npy')
+        return X,y
 
     num_images = 3000
     label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
@@ -48,7 +53,9 @@ def load_data():
     # print df
     print "Loaded training images with shape {0}.".format(X.shape)
     print "Loaded training labels with shape {0}.".format(y.shape)
-    return np.array(X), np.array(y)
+    np.save('samples.npy', X)
+    np.save('labels.npy', y)
+    return X, y
 
 
 # placeholders initialize the size of the input and output
@@ -135,7 +142,8 @@ def run_training():
     val_labels = shuffled_labels[split:]
 
     # create VGG19 model
-    vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
+    # vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
+    vgg = VGG19('./src/vgg19.npy')
     vgg.build(images_pl, tm_pl)
     logits = vgg.prob # set logits to the softmax output of the net
 
@@ -237,14 +245,15 @@ if __name__ == '__main__':
     parser.add_argument(
         '--images_path',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
-        #'/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train'
+        # default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
+        default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
         help='Directory to put the input data.'
     )
     parser.add_argument(
         '--log_dir',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/logs',
+        # default='/home/ryan/cs/kaggle/ncfm/logs',
+        default='/home/mzhao/Desktop/kaggle/ncfm/logs',
         help='Directory to put the log data.'
     )
     parser.add_argument(
