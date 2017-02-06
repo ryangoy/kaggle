@@ -74,9 +74,14 @@ def loss_op(logits, labels):
     #    labels=labels, logits=logits, name='xentropy')
     #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
 
-    labels = tf.cast(labels, tf.float32)  
-    l2_function = tf.nn.l2_loss(logits - labels)
-    loss = tf.reduce_sum(l2_function, name='l2_loss')
+    # labels = tf.cast(labels, tf.float32)  
+    # # l2_function = tf.nn.l2_loss(logits - labels)
+    # l2_function = tf.nn.l2_loss(tf.log(logits) * labels)
+    # loss = tf.reduce_sum(l2_function, name='l2_loss')
+
+    loss = tf.reduce_mean(
+      tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+
     return loss
 
 def training(loss, learning_rate):
@@ -106,13 +111,15 @@ def fill_feed_dict(step, train_mode, train_mode_pl,
     return feed_dict
 
 def run_training():
+
+    tf.set_random_seed(1)
     
     # initialize placeholders, tm stands for train mode
     images_pl, labels_pl, tm_pl = placeholder_inputs(FLAGS.batch_size)
 
     # load data
     print "Loading data..."
-    training_images, training_labels, val_images, val_labels = load_data()
+    training_images, training_labels, val_images, val_labels = load_data(preloaded=True)
 
     # create VGG19 model
     vgg = VGG19(FLAGS.vgg_path)
@@ -158,13 +165,13 @@ def run_training():
             # Write the summaries and print an overview fairly often.
             if step % 100 == 0:
                 # Print status to stdout.
-                print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
+                print('Step %d: loss = %.5f (%.5f min)' % (step, loss_value, (time.time() - training_start_time)/60))
                 # Update the events file.
                 summary_str = sess.run(summary, feed_dict=feed_dict)
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
             elif step % 10 == 0:
-                print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
+                print('Step %d: loss = %.5f (%.5f min)' % (step, loss_value, (time.time() - training_start_time)/60))
 
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
@@ -196,6 +203,7 @@ def main(_):
     if tf.gfile.Exists(FLAGS.log_dir):
         tf.gfile.DeleteRecursively(FLAGS.log_dir)
     tf.gfile.MakeDirs(FLAGS.log_dir)
+    np.random.seed(seed=0)
     run_training()
 
 
@@ -216,22 +224,22 @@ if __name__ == '__main__':
     parser.add_argument(
         '--vgg_path',
         type=str,
-        default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
-        #default='./src/vgg19.npy',
+        # default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
+        default='./src/vgg19.npy',
         help='Directory to the pre-trained vgg model.'
     )
     parser.add_argument(
         '--images_path',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
-        #default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
+        # default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
+        default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
         help='Directory to put the input data.'
     )
     parser.add_argument(
         '--log_dir',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/logs',
-        # default='/home/mzhao/Desktop/kaggle/ncfm/logs',
+        # default='/home/ryan/cs/kaggle/ncfm/logs',
+        default='/home/mzhao/Desktop/kaggle/ncfm/logs',
         help='Directory to put the log data.'
     )
     parser.add_argument(
