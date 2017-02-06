@@ -2,19 +2,61 @@ from vgg19 import VGG19
 import tensorflow as tf
 import utils
 import numpy as np
+import pandas as pd
 import argparse
 import os.path
 import sys
 import time
+import skimage.io
 
 # Basic model parameters as external flags.
 FLAGS = None
+
+
+def load_data():
+
+    num_images = 3000
+    label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
+    label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
+    labels = [[1,0,0,0,0,0],
+          [0,1,0,0,0,0],
+          [0,0,1,0,0,0],
+          [0,0,0,1,0,0],
+          [0,0,0,0,1,0],
+          [0,0,0,0,0,1]]
+    #labels = [0, 1, 2, 3, 4, 5]
+
+    y = []
+    y_index = []
+    for i in range(len(label_counts)):
+        y += [labels[i] for _ in range(label_counts[i])]
+        y_index += [i for _ in range(label_counts[i])]
+    y = np.array(y)
+
+
+
+    X = np.empty((num_images, 224, 224, 3))
+    for i in range(num_images):
+        img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+        #img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+        img = img.reshape((1, 224, 224, 3))
+        X[i] = img
+
+    # load data into a pandas dataframe for easier manipulation of dataset
+    # df = pd.DataFrame.from_records(X)
+    # df['label'] = y_index
+    # print df
+    print "Loaded training images with shape {0}.".format(X.shape)
+    print "Loaded training labels with shape {0}.".format(y.shape)
+    return np.array(X), np.array(y)
+
 
 # placeholders initialize the size of the input and output
 def placeholder_inputs(batch_size):
     images_placeholder = tf.placeholder(tf.float32, 
         shape=[batch_size, FLAGS.width, FLAGS.height, FLAGS.channels])
     labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size, FLAGS.num_categories])
+    #labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size])
     train_mode = tf.placeholder(tf.bool)
     return images_placeholder, labels_placeholder, train_mode
 
@@ -26,6 +68,7 @@ def fill_feed_dict(step, train_mode, train_mode_pl,
     feed_dict = {images_pl: images_feed, train_mode_pl: train_mode}
 
     if train_mode: # if we're training, we'll also need labels
+
         labels_feed = labels[FLAGS.batch_size*step:FLAGS.batch_size*(step+1)]
         feed_dict[labels_pl] = labels_feed
 
@@ -43,7 +86,9 @@ def loss_op(logits, labels):
   #cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
   #    labels=labels, logits=logits, name='xentropy')
   #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
-  l2_loss = (logits - labels) ** 2
+  l2_loss = tf.nn.l2_loss(logits - labels)
+
+  #l2_loss = (logits - labels) ** 2
   return tf.reduce_sum(l2_loss, name='l2_loss')
 
 def training(loss, learning_rate):
@@ -75,8 +120,19 @@ def run_training():
     images_pl, labels_pl, tm_pl = placeholder_inputs(FLAGS.batch_size)
 
     # load data
+    print "Loading data..."
     images, labels = load_data()
-    num_images = images.shape[0]
+
+    indices = np.arange(images.shape[0])
+    np.random.shuffle(indices)
+    shuffled_images = images[indices]
+    shuffled_labels = labels[indices]
+    split = int(images.shape[0]*.9)
+    training_images = shuffled_images[:split]
+    training_labels = shuffled_labels[:split]
+
+    val_images = shuffled_images[split:]
+    val_labels = shuffled_labels[split:]
 
     # create VGG19 model
     vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
@@ -97,7 +153,8 @@ def run_training():
     saver = tf.train.Saver()
     
     # begin session
-    sess = tf.Session()
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
     # Instantiate a SummaryWriter to output summaries and the Graph.
     summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
@@ -111,12 +168,13 @@ def run_training():
     step = 0
     for epoch in range(FLAGS.num_epochs):
         epoch_start_time = time.time()
-        for i in range(num_images // FLAGS.batch_size):
+        for i in range(training_images.shape[0] // FLAGS.batch_size):
             step += 1
-            feed_dict = fill_feed_dict(i, True, tm_pl, images,
-                images_pl, labels, labels_pl)
-            _, loss_value = sess.run([train_op, loss], feed_dict=feed_dict)
-        # Write the summaries and print an overview fairly often.
+            _, loss_value = sess.run([train_op, loss], 
+                feed_dict={images_pl: training_images[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
+                           labels_pl: training_labels[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
+                           tm_pl: True})
+            # Write the summaries and print an overview fairly often.
             if step % 100 == 0:
                 # Print status to stdout.
                 print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
@@ -133,7 +191,10 @@ def run_training():
     sess.close()
     print "Done!"
 
-def test_net(batch):
+def test_net():
+    images, labels = load_data()
+
+    
     sess = tf.Session()
 
     images = tf.placeholder(tf.float32, [None, 224, 224, 3])
@@ -150,36 +211,6 @@ def test_net(batch):
     sess.close()
     print np.argmax(prob, axis=1)
 
-def load_data():
-
-    num_images = 3000
-    label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
-    label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
-    labels = [[1,0,0,0,0,0],
-          [0,1,0,0,0,0],
-          [0,0,1,0,0,0],
-          [0,0,0,1,0,0],
-          [0,0,0,0,1,0],
-          [0,0,0,0,0,1]]
-
-    y = []
-    y_index = []
-    for i in range(len(label_counts)):
-        y += [labels[i] for _ in range(label_counts[i])]
-        y_index += [i for _ in range(label_counts[i])]
-    y = np.array(y)
-
-    X = np.empty((num_images, 224, 224, 3))
-    for i in range(num_images):
-        img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-        
-        img = img.reshape((1, 224, 224, 3))
-        X[i] = img
-        if i % 1000 == 0 and i > 0:
-            print "Finished pre-processing " + str(i) + " images"
-    print "Loaded training images with shape {0}.".format(X.shape)
-    print "Loaded training labels with shape {0}.".format(y.shape)
-    return X, y
 
 
 def main(_):
@@ -200,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=100,
+        default=50,
         help='Batch size.  Must divide evenly into the dataset sizes.'
     )
     parser.add_argument(
@@ -237,7 +268,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--num_epochs',
         type=int,
-        default=10,
+        default=100,
         help='Number of epochs to run training for.'
     )
     parser.add_argument(

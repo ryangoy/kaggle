@@ -5,7 +5,7 @@ import numpy as np
 import time
 import inspect
 
-VGG_MEAN = [103.939, 116.779, 123.68]
+#VGG_MEAN = [103.939, 116.779, 123.68]
 
 
 class VGG19:
@@ -30,17 +30,15 @@ class VGG19:
         :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
         """
 
-        rgb_scaled = rgb * 255.0
-
         # Convert RGB to BGR
-        red, green, blue = tf.split(3, 3, rgb_scaled)
+        red, green, blue = tf.split(3, 3, rgb)
         assert red.get_shape().as_list()[1:] == [224, 224, 1]
         assert green.get_shape().as_list()[1:] == [224, 224, 1]
         assert blue.get_shape().as_list()[1:] == [224, 224, 1]
         bgr = tf.concat(3, [
-            blue - VGG_MEAN[0],
-            green - VGG_MEAN[1],
-            red - VGG_MEAN[2],
+            blue - tf.reduce_mean(blue),
+            green - tf.reduce_mean(green),
+            red - tf.reduce_mean(red),
         ])
         assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
 
