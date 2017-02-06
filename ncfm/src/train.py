@@ -12,47 +12,52 @@ import skimage.io
 # Basic model parameters as external flags.
 FLAGS = None
 
-
-
 def load_data(preloaded=False):
     if preloaded:
         X = np.load('samples.npy')
         y = np.load('labels.npy')
-        return X,y
+    else:
+        num_images = 3000
+        label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
+        label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
+        labels = [[1,0,0,0,0,0],
+              [0,1,0,0,0,0],
+              [0,0,1,0,0,0],
+              [0,0,0,1,0,0],
+              [0,0,0,0,1,0],
+              [0,0,0,0,0,1]]
 
-    num_images = 3000
-    label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
-    label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
-    labels = [[1,0,0,0,0,0],
-          [0,1,0,0,0,0],
-          [0,0,1,0,0,0],
-          [0,0,0,1,0,0],
-          [0,0,0,0,1,0],
-          [0,0,0,0,0,1]]
-    #labels = [0, 1, 2, 3, 4, 5]
+        y = []
+        y_index = []
+        for i in range(len(label_counts)):
+            y += [labels[i] for _ in range(label_counts[i])]
+            y_index += [i for _ in range(label_counts[i])]
+        y = np.array(y)
 
-    y = []
-    y_index = []
-    for i in range(len(label_counts)):
-        y += [labels[i] for _ in range(label_counts[i])]
-        y_index += [i for _ in range(label_counts[i])]
-    y = np.array(y)
+        X = np.empty((num_images, 224, 224, 3))
+        for i in range(num_images):
+            img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+            #img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+            img = img.reshape((1, 224, 224, 3))
+            X[i] = img
 
+        print "Loaded training images with shape {0}.".format(X.shape)
+        print "Loaded training labels with shape {0}.".format(y.shape)
+        np.save('samples.npy', X)
+        np.save('labels.npy', y)
 
+    indices = np.arange(X.shape[0])
+    np.random.shuffle(indices)
+    shuffled_images = X[indices]
+    shuffled_labels = y[indices]
+    split = int(X.shape[0]*.9)
+    training_images = shuffled_images[:split]
+    training_labels = shuffled_labels[:split]
 
-    X = np.empty((num_images, 224, 224, 3))
-    for i in range(num_images):
-        img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-        #img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-        img = img.reshape((1, 224, 224, 3))
-        X[i] = img
+    val_images = shuffled_images[split:]
+    val_labels = shuffled_labels[split:]
 
-    print "Loaded training images with shape {0}.".format(X.shape)
-    print "Loaded training labels with shape {0}.".format(y.shape)
-    np.save('samples.npy', X)
-    np.save('labels.npy', y)
-    return X, y
-
+    return training_images, training_labels, val_images, val_labels
 
 # placeholders initialize the size of the input and output
 def placeholder_inputs(batch_size):
@@ -62,6 +67,29 @@ def placeholder_inputs(batch_size):
     #labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size])
     train_mode = tf.placeholder(tf.bool)
     return images_placeholder, labels_placeholder, train_mode
+
+def loss_op(logits, labels):
+
+    #cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+    #    labels=labels, logits=logits, name='xentropy')
+    #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
+
+    labels = tf.cast(labels, tf.float32)  
+    l2_function = tf.nn.l2_loss(logits - labels)
+    loss = tf.reduce_sum(l2_function, name='l2_loss')
+    return loss
+
+def training(loss, learning_rate):
+
+    tf.summary.scalar('loss', loss)
+    # Create the gradient descent optimizer with the given learning rate.
+    optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
+    # Create a variable to track the global step.
+    global_step = tf.Variable(0, name='global_step', trainable=False)
+    # Use the optimizer to apply the gradients that minimize the loss
+    # (and also increment the global step counter) as a single training step.
+    train_op = optimizer.minimize(loss, global_step=global_step)
+    return train_op
 
 # sess.run() uses feed_dicts to train
 def fill_feed_dict(step, train_mode, train_mode_pl,
@@ -77,46 +105,6 @@ def fill_feed_dict(step, train_mode, train_mode_pl,
 
     return feed_dict
 
-def loss_op(logits, labels):
-  """Calculates the loss from the logits and the labels.
-  Args:
-    logits: Logits tensor, float - [batch_size, NUM_CLASSES].
-    labels: Labels tensor, int32 - [batch_size].
-  Returns:
-    loss: Loss tensor of type float.
-  """
-  labels = tf.cast(labels, tf.float32)
-  #cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-  #    labels=labels, logits=logits, name='xentropy')
-  #return tf.reduce_mean(cross_entropy, name='xentropy_mean')
-  l2_loss = tf.nn.l2_loss(logits - labels)
-
-  #l2_loss = (logits - labels) ** 2
-  return tf.reduce_sum(l2_loss, name='l2_loss')
-
-def training(loss, learning_rate):
-  """Sets up the training Ops.
-  Creates a summarizer to track the loss over time in TensorBoard.
-  Creates an optimizer and applies the gradients to all trainable variables.
-  The Op returned by this function is what must be passed to the
-  `sess.run()` call to cause the model to train.
-  Args:
-    loss: Loss tensor, from loss().
-    learning_rate: The learning rate to use for gradient descent.
-  Returns:
-    train_op: The Op for training.
-  """
-  # Add a scalar summary for the snapshot loss.
-  tf.summary.scalar('loss', loss)
-  # Create the gradient descent optimizer with the given learning rate.
-  optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
-  # Create a variable to track the global step.
-  global_step = tf.Variable(0, name='global_step', trainable=False)
-  # Use the optimizer to apply the gradients that minimize the loss
-  # (and also increment the global step counter) as a single training step.
-  train_op = optimizer.minimize(loss, global_step=global_step)
-  return train_op
-
 def run_training():
     
     # initialize placeholders, tm stands for train mode
@@ -124,27 +112,16 @@ def run_training():
 
     # load data
     print "Loading data..."
-    images, labels = load_data()
-
-    indices = np.arange(images.shape[0])
-    np.random.shuffle(indices)
-    shuffled_images = images[indices]
-    shuffled_labels = labels[indices]
-    split = int(images.shape[0]*.9)
-    training_images = shuffled_images[:split]
-    training_labels = shuffled_labels[:split]
-
-    val_images = shuffled_images[split:]
-    val_labels = shuffled_labels[split:]
+    training_images, training_labels, val_images, val_labels = load_data()
 
     # create VGG19 model
-    # vgg = VGG19('/home/ryan/cs/datasets/ncfm/vgg19.npy')
-    vgg = VGG19('./src/vgg19.npy')
+    vgg = VGG19(FLAGS.vgg_path)
     vgg.build(images_pl, tm_pl)
-    logits = vgg.prob # set logits to the softmax output of the net
 
-    # call the above methods to return the training optimizer
-    loss = loss_op(logits, labels_pl)
+    # define loss with output of vgg net and labels
+    loss = loss_op(vgg.prob, labels_pl) 
+
+    # define training operation
     train_op = training(loss, FLAGS.learning_rate)
 
     # # Add the Op to compare the logits to the labels during evaluation.
@@ -189,16 +166,15 @@ def run_training():
             elif step % 10 == 0:
                 print('Step %d: loss = %.2f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
 
-
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
     sess.close()
     print "Done!"
 
 def test_net():
+
     images, labels = load_data()
 
-    
     sess = tf.Session()
 
     images = tf.placeholder(tf.float32, [None, 224, 224, 3])
@@ -214,7 +190,6 @@ def test_net():
     prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
     sess.close()
     print np.argmax(prob, axis=1)
-
 
 
 def main(_):
@@ -239,17 +214,24 @@ if __name__ == '__main__':
         help='Batch size.  Must divide evenly into the dataset sizes.'
     )
     parser.add_argument(
+        '--vgg_path',
+        type=str,
+        default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
+        #default='./src/vgg19.npy',
+        help='Directory to the pre-trained vgg model.'
+    )
+    parser.add_argument(
         '--images_path',
         type=str,
-        # default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
-        default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
+        default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
+        #default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
         help='Directory to put the input data.'
     )
     parser.add_argument(
         '--log_dir',
         type=str,
-        # default='/home/ryan/cs/kaggle/ncfm/logs',
-        default='/home/mzhao/Desktop/kaggle/ncfm/logs',
+        default='/home/ryan/cs/kaggle/ncfm/logs',
+        # default='/home/mzhao/Desktop/kaggle/ncfm/logs',
         help='Directory to put the log data.'
     )
     parser.add_argument(
