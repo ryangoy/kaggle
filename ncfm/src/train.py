@@ -154,25 +154,26 @@ def run_training():
     print "Training..."
     training_start_time = time.time()
     step = 0
+    num_batches = training_images.shape[0] // FLAGS.batch_size
     for epoch in range(FLAGS.num_epochs):
         epoch_start_time = time.time()
-        for i in range(training_images.shape[0] // FLAGS.batch_size):
+        for i in range(num_batches):
             step += 1
-            _, loss_value = sess.run([train_op, loss], 
-                feed_dict={images_pl: training_images[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
+            feed_dict = {images_pl: training_images[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
                            labels_pl: training_labels[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
-                           tm_pl: True})
+                           tm_pl: True}
+            _, loss_value = sess.run([train_op, loss], 
+                feed_dict=feed_dict)
             # Write the summaries and print an overview fairly often.
-            if step % 100 == 0:
-                # Print status to stdout.
-                print('Step %d: loss = %.5f (%.5f min)' % (step, loss_value, (time.time() - training_start_time)/60))
+            if step % num_batches == 0:
+                print '[Epoch %d] loss = %.5f (%.5f min)' % (epoch, loss_value, (time.time() - training_start_time)/60)
                 # Update the events file.
                 summary_str = sess.run(summary, feed_dict=feed_dict)
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
-            elif step % 10 == 0:
+            if step % 10 == 0:
                 print('Step %d: loss = %.5f (%.5f min)' % (step, loss_value, (time.time() - training_start_time)/60))
-
+                
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
     sess.close()
@@ -212,7 +213,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.0001,
+        default=0.00001,
         help='Initial learning rate.'
     )
     parser.add_argument(
