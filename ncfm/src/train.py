@@ -42,10 +42,6 @@ def load_data():
         img = img.reshape((1, 224, 224, 3))
         X[i] = img
 
-    # load data into a pandas dataframe for easier manipulation of dataset
-    # df = pd.DataFrame.from_records(X)
-    # df['label'] = y_index
-    # print df
     print "Loaded training images with shape {0}.".format(X.shape)
     print "Loaded training labels with shape {0}.".format(y.shape)
     return np.array(X), np.array(y)
