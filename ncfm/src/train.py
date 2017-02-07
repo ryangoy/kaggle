@@ -13,7 +13,7 @@ import skimage.io
 FLAGS = None
 
 def load_data(preloaded=False):
-    if preloaded:
+    if None:
         X = np.load('samples.npy')
         y = np.load('labels.npy')
     else:
@@ -36,11 +36,11 @@ def load_data(preloaded=False):
 
         X = np.empty((num_images, 224, 224, 3))
         for i in range(num_images):
-            img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-            #img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+            #img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
+            img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
             img = img.reshape((1, 224, 224, 3))
             X[i] = img
-
+        y = np.array(y_index)
         print "Loaded training images with shape {0}.".format(X.shape)
         print "Loaded training labels with shape {0}.".format(y.shape)
         np.save('samples.npy', X)
@@ -63,8 +63,8 @@ def load_data(preloaded=False):
 def placeholder_inputs(batch_size):
     images_placeholder = tf.placeholder(tf.float32, 
         shape=[batch_size, FLAGS.width, FLAGS.height, FLAGS.channels])
-    labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size, FLAGS.num_categories])
-    #labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size])
+    #labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size, FLAGS.num_categories])
+    labels_placeholder = tf.placeholder(tf.int32, shape=[batch_size])
     train_mode = tf.placeholder(tf.bool)
     return images_placeholder, labels_placeholder, train_mode
 
@@ -80,11 +80,11 @@ def loss_op(logits, labels):
     # loss = tf.reduce_sum(l2_function, name='l2_loss')
 
     loss = tf.reduce_mean(
-      tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+      tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
     return loss
 
-def training(loss, learning_rate):
+def training_op(loss, learning_rate):
 
     tf.summary.scalar('loss', loss)
     # Create the gradient descent optimizer with the given learning rate.
@@ -95,6 +95,10 @@ def training(loss, learning_rate):
     # (and also increment the global step counter) as a single training step.
     train_op = optimizer.minimize(loss, global_step=global_step)
     return train_op
+
+def evaluation_op(logits, labels):
+    correct = tf.nn.in_top_k(logits, labels, 1)
+    return tf.reduce_sum(tf.cast(correct, tf.int32))
 
 # sess.run() uses feed_dicts to train
 def fill_feed_dict(step, train_mode, train_mode_pl,
@@ -109,6 +113,31 @@ def fill_feed_dict(step, train_mode, train_mode_pl,
         feed_dict[labels_pl] = labels_feed
 
     return feed_dict
+
+def do_eval(sess, eval_correct,
+            images_placeholder, images,
+            labels_placeholder, labels,
+            train_mode_placeholder):
+    """Runs one evaluation against the full epoch of data.
+    Args:
+      sess: The session in which the model has been trained.
+      eval_correct: The Tensor that returns the number of correct predictions.
+      images_placeholder: The images placeholder.
+      labels_placeholder: The labels placeholder.
+      data_set: The set of images and labels to evaluate, from
+        input_data.read_data_sets().
+    """
+    # And run one epoch of eval.
+    true_count = 0  # Counts the number of correct predictions.
+    num_examples = images.shape[0]
+    for i in xrange(num_examples // FLAGS.batch_size):
+        feed_dict = {images_placeholder: images[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
+                     labels_placeholder: labels[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
+                     train_mode_placeholder: False,}
+        true_count += sess.run(eval_correct, feed_dict=feed_dict)
+    precision = float(true_count) / num_examples
+    print('  Num examples: %d  Num correct: %d  Precision @ 1: %0.04f' %
+          (num_examples, true_count, precision))
 
 def run_training():
 
@@ -129,10 +158,10 @@ def run_training():
     loss = loss_op(vgg.prob, labels_pl) 
 
     # define training operation
-    train_op = training(loss, FLAGS.learning_rate)
+    train_op = training_op(loss, FLAGS.learning_rate)
 
-    # # Add the Op to compare the logits to the labels during evaluation.
-    # eval_correct = mnist.evaluation(logits, labels_placeholder)
+    # Add the Op to compare the logits to the labels during evaluation.
+    eval_correct = evaluation_op(vgg.prob, labels_pl)
 
     # for display purposes later
     summary = tf.summary.merge_all()
@@ -165,39 +194,29 @@ def run_training():
             _, loss_value = sess.run([train_op, loss], 
                 feed_dict=feed_dict)
             # Write the summaries and print an overview fairly often.
-            if step % num_batches == 0:
-                print '[Epoch %d] loss = %.5f (%.5f min)' % (epoch, loss_value, (time.time() - training_start_time)/60)
+            if step % 100 == 0:
+                
                 # Update the events file.
                 summary_str = sess.run(summary, feed_dict=feed_dict)
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
             if step % 10 == 0:
-                print('Step %d: loss = %.5f (%.5f min)' % (step, loss_value, (time.time() - training_start_time)/60))
-                
+                print('Step %d: loss = %.5f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
+        print '[Epoch %d] loss = %.5f (%.2f min)' % (epoch, loss_value, (time.time() - training_start_time)/60)
+        print 'Training Data Eval:'
+        do_eval(sess, eval_correct,
+                images_pl, training_images,
+                labels_pl, training_labels,
+                tm_pl)
+        print 'Validation Data Eval:'
+        do_eval(sess, eval_correct,
+                images_pl, val_images,
+                labels_pl, val_labels,
+                tm_pl)
     print "Saving new model..."
     vgg.save_npy(sess, './test-save.npy')
     sess.close()
     print "Done!"
-
-def test_net():
-
-    images, labels = load_data()
-
-    sess = tf.Session()
-
-    images = tf.placeholder(tf.float32, [None, 224, 224, 3])
-    true_out = tf.placeholder(tf.float32, [None, 6])
-    train_mode = tf.placeholder(tf.bool)
-
-    vgg = VGG19('./test-save.npy')
-    print "Building..."
-    vgg.build(images, train_mode)
-    print "Initializing variables"
-    sess.run(tf.initialize_all_variables())
-
-    prob = sess.run(vgg.prob, feed_dict={images: batch, train_mode: False})
-    sess.close()
-    print np.argmax(prob, axis=1)
 
 
 def main(_):
@@ -213,7 +232,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.00001,
+        default=0.00005,
         help='Initial learning rate.'
     )
     parser.add_argument(
@@ -225,22 +244,22 @@ if __name__ == '__main__':
     parser.add_argument(
         '--vgg_path',
         type=str,
-        # default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
-        default='./src/vgg19.npy',
+        default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
+        #default='./src/vgg19.npy',
         help='Directory to the pre-trained vgg model.'
     )
     parser.add_argument(
         '--images_path',
         type=str,
-        # default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
-        default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
+        default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
+        #default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
         help='Directory to put the input data.'
     )
     parser.add_argument(
         '--log_dir',
         type=str,
-        # default='/home/ryan/cs/kaggle/ncfm/logs',
-        default='/home/mzhao/Desktop/kaggle/ncfm/logs',
+        default='/home/ryan/cs/kaggle/ncfm/logs',
+        #default='/home/mzhao/Desktop/kaggle/ncfm/logs',
         help='Directory to put the log data.'
     )
     parser.add_argument(
