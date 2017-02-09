@@ -156,11 +156,11 @@ def run_training():
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
             if step % 10 == 0:
-                print "Guesses: " + str(np.argmax(guesses, axis=1))
-                print "Results: "+ str(labs)
-                idk = np.argmax(guesses,axis=1)
-                num_sim = sum([idk[i] == labs[i] for i in range(len(labs))])
-                print "accuracy: %.2f" % (float(num_sim) / len(labs))
+                # print "Guesses: " + str(np.argmax(guesses, axis=1))
+                # print "Results: "+ str(labs)
+                # idk = np.argmax(guesses,axis=1)
+                # num_sim = sum([idk[i] == labs[i] for i in range(len(labs))])
+                # print "accuracy: %.2f" % (float(num_sim) / len(labs))
                 print('Step %d: loss = %.5f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
         print '[Epoch %d] loss = %.5f (%.2f min)' % (epoch, loss_value, (time.time() - training_start_time)/60)
         print 'Training Data Eval:'

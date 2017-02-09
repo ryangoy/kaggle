@@ -17,7 +17,16 @@ def load_processed_fish(pathname, target_size):
                 "img_{0}label_{1}.jpg".format(i + label_bounds[label], label)))
         resize_image_set(images, target_size)
         fish_images.append(images)
-    X = np.array(fish_images).reshape((-1,224,224,3))
+
+    X = np.empty((6*target_size, 224, 224, 3))
+    index = 0
+    for fish in fish_images:
+        for i in range(len(fish)):
+            X[index] = fish[i]
+            index += 1
+
+
+    #.reshape((-1,224,224,3))
     y = []
     for i in range(len(label_counts)):
         y += [i] * target_size
@@ -43,18 +52,17 @@ def load_processed_fish(pathname, target_size):
 
 def resize_image_set(arr, target_size):
     # shuffle along the first axis
+    newarr = np.empty((target_size, 224, 224, 3))
     np.random.shuffle(arr)
     # reduce size
     if len(arr) >= target_size:
         return arr[:target_size]
     # augment
     else:
-        num_extra = target_size-len(arr)
-        for i in range(num_extra):
-            arr.append(arr[i])
-    print len(arr)
-    assert len(arr) == target_size
-    return np.array(arr)
+        for i in range(target_size):
+            newarr[i] = arr[i%len(arr)]
+    assert newarr.shape == (target_size, 224, 224, 3)
+    return newarr
 
 
 
@@ -96,4 +104,3 @@ def resize_image_set(arr, target_size):
 
 
 
-    
