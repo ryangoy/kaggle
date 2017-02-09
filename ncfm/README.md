@@ -16,3 +16,7 @@
 * perspective (non-affine transforms)
 * augment training set: RGB color shift, random scaling, random perspective warp, instead of flipping all images right side up (since this might be imperfect), flip all images vertically so there is exactly 50% right side up, 50% upside down
 * use smaller neural networks due to training set being relatively small (vgg16, zf, etc)
+
+### Useful Repos: ###
+* https://github.com/rdcolema/nc-fish-classification
+* https://github.com/pengpaiSH/Kaggle_NCFM
