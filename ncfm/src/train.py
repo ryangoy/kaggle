@@ -8,56 +8,10 @@ import os.path
 import sys
 import time
 import skimage.io
+from load_fish import load_processed_fish
 
 # Basic model parameters as external flags.
 FLAGS = None
-
-def load_data(preloaded=False):
-    if None:
-        X = np.load('samples.npy')
-        y = np.load('labels.npy')
-    else:
-        num_images = 3000
-        label_bounds = [0, 199, 1910, 2641, 2758, 2933, 3000] #not using other fish
-        label_counts = [label_bounds[i+1]-label_bounds[i] for i in range(len(label_bounds)-1)]
-        labels = [[1,0,0,0,0,0],
-              [0,1,0,0,0,0],
-              [0,0,1,0,0,0],
-              [0,0,0,1,0,0],
-              [0,0,0,0,1,0],
-              [0,0,0,0,0,1]]
-
-        y = []
-        y_index = []
-        for i in range(len(label_counts)):
-            y += [labels[i] for _ in range(label_counts[i])]
-            y_index += [i for _ in range(label_counts[i])]
-        y = np.array(y)
-
-        X = np.empty((num_images, 224, 224, 3))
-        for i in range(num_images):
-            #img = utils.load_image(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-            img = skimage.io.imread(os.path.join(FLAGS.images_path, "img_{0}label_{1}.jpg".format(i, y_index[i])))
-            img = img.reshape((1, 224, 224, 3))
-            X[i] = img
-        y = np.array(y_index)
-        print "Loaded training images with shape {0}.".format(X.shape)
-        print "Loaded training labels with shape {0}.".format(y.shape)
-        np.save('samples.npy', X)
-        np.save('labels.npy', y)
-
-    indices = np.arange(X.shape[0])
-    np.random.shuffle(indices)
-    shuffled_images = X[indices]
-    shuffled_labels = y[indices]
-    split = int(X.shape[0]*.9)
-    training_images = shuffled_images[:split]
-    training_labels = shuffled_labels[:split]
-
-    val_images = shuffled_images[split:]
-    val_labels = shuffled_labels[split:]
-
-    return training_images, training_labels, val_images, val_labels
 
 # placeholders initialize the size of the input and output
 def placeholder_inputs(batch_size):
@@ -148,7 +102,7 @@ def run_training():
 
     # load data
     print "Loading data..."
-    training_images, training_labels, val_images, val_labels = load_data(preloaded=True)
+    training_images, training_labels, val_images, val_labels = load_processed_fish(FLAGS.images_path, 500)
 
     # create VGG19 model
     vgg = VGG19(FLAGS.vgg_path)
@@ -191,7 +145,7 @@ def run_training():
             feed_dict = {images_pl: training_images[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
                            labels_pl: training_labels[FLAGS.batch_size*i:FLAGS.batch_size*(i+1)],
                            tm_pl: True}
-            _, loss_value = sess.run([train_op, loss], 
+            _, loss_value, guesses, labs = sess.run([train_op, loss, vgg.prob, labels_pl], 
                 feed_dict=feed_dict)
             # Write the summaries and print an overview fairly often.
             if step % 100 == 0:
@@ -201,6 +155,11 @@ def run_training():
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
             if step % 10 == 0:
+                print "Guesses: " + str(np.argmax(guesses, axis=1))
+                print "Results: "+ str(labs)
+                idk = np.argmax(guesses,axis=1)
+                num_sim = sum([idk[i] == labs[i] for i in range(len(labs))])
+                print "accuracy: %.2f" % (float(num_sim) / len(labs))
                 print('Step %d: loss = %.5f (%.2f min)' % (step, loss_value, (time.time() - training_start_time)/60))
         print '[Epoch %d] loss = %.5f (%.2f min)' % (epoch, loss_value, (time.time() - training_start_time)/60)
         print 'Training Data Eval:'
@@ -232,7 +191,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.00005,
+        default=0.0003,
         help='Initial learning rate.'
     )
     parser.add_argument(

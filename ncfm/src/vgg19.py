@@ -40,6 +40,7 @@ class VGG19:
             green - tf.reduce_mean(green),
             red - tf.reduce_mean(red),
         ])
+        
         assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
 
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
