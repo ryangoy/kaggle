@@ -8,6 +8,7 @@ import os.path
 import sys
 import time
 import skimage.io
+import paths
 
 # Basic model parameters as external flags.
 FLAGS = None
@@ -244,22 +245,19 @@ if __name__ == '__main__':
     parser.add_argument(
         '--vgg_path',
         type=str,
-        default='/home/ryan/cs/datasets/ncfm/vgg19.npy',
-        #default='./src/vgg19.npy',
+        default=paths.vgg_path,
         help='Directory to the pre-trained vgg model.'
     )
     parser.add_argument(
         '--images_path',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/preprocessed_train',
-        #default='/home/mzhao/Desktop/kaggle/ncfm/preprocessed_train',
+        default=paths.images_path,
         help='Directory to put the input data.'
     )
     parser.add_argument(
         '--log_dir',
         type=str,
-        default='/home/ryan/cs/kaggle/ncfm/logs',
-        #default='/home/mzhao/Desktop/kaggle/ncfm/logs',
+        default=paths.log_dir,
         help='Directory to put the log data.'
     )
     parser.add_argument(
