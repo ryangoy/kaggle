@@ -1,0 +1,5 @@
+*.pyc
+*.npy
+*.h5
+*.csv
+.ipynb_checkpoints/
