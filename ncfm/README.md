@@ -9,6 +9,7 @@
 * try identifying boats
 * tune hyperparameters
 * blend models
+
 #### Ryan: ####
 * gamma balance and color balance (anything to do with image standardization i.e. linearlization and normalization)
 * dropout
