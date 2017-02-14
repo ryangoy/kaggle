@@ -1,0 +1,14 @@
+TODO
+- automate method to split between train val better
+- check if validation augmentation has any point
+- make validation error and training error closer to test error
+- train more on images producing more error
+- try identifying boats
+- tune hyperparameters
+- blend models
+
+DONE
+- basic vgg16 implemented with keras
+- added keras data augmentation for train/test
+- clip probabilities to minimize loss
+- save regular submission csv and modify when reading in/out

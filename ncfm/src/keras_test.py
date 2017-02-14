@@ -34,7 +34,7 @@ def vgg16():
     n_classes = 8
     lr = 0.001
     dropout = 0.4
-    weights_file='vgg16.h5'
+    weights_file='weights/vgg16.h5'
 
     model = Sequential()
     model.add(Lambda(vgg_preprocess, input_shape=(3,)+size))
@@ -111,13 +111,16 @@ def get_vgg_gens(train=True, test=True):
     test_gen = None
 
     if train:
-        train_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
+        trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
+                                          channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
+                                          horizontal_flip=True)
+        trn_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                           channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                           horizontal_flip=True)
         val_datagen = ImageDataGenerator()
-        trn_all_gen = train_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
+        trn_all_gen = trn_all_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
-        trn_gen = train_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
+        trn_gen = trn_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
         val_gen = val_datagen.flow_from_directory(val_path, target_size=size, batch_size=batch_size,
                                                                class_mode='categorical', shuffle=True)
@@ -175,13 +178,16 @@ def get_inception_gens(train=True, test=True):
     test_gen = None
 
     if train:
-        train_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
+        trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
+                                              channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
+                                              horizontal_flip=True, rescale=2./255, samplewise_center=True)
+        trn_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                               channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                               horizontal_flip=True, rescale=2./255, samplewise_center=True)
         val_datagen = ImageDataGenerator(rescale=2./255, samplewise_center=True)
-        trn_all_gen = train_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
+        trn_all_gen = trn_all_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
-        trn_gen = train_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
+        trn_gen = trn_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
         val_gen = val_datagen.flow_from_directory(val_path, target_size=size, batch_size=batch_size,
                                                                class_mode='categorical', shuffle=True)
@@ -210,20 +216,21 @@ if __name__ == '__main__':
     nb_trn_samples = 3210
     nb_val_samples = 567
     nb_test_samples = 1000
-    nb_epoch = 10
+    nb_epoch = 20
     nb_classes = 8
 
     nb_runs = 5
     nb_aug = 5
 
-    # model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2)
-    model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
-                validation_data=val_gen, nb_val_samples=nb_val_samples)
-    model.save_weights('vgg16_10epochs.h5')
-    # model.load_weights('vgg16_10epochs.h5')
+    # model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
+    # model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
+                # validation_data=val_gen, nb_val_samples=nb_val_samples)
+    # model.save_weights('weights/vgg16_all_20epochs.h5')
+    # model.load_weights('weights/vgg16_10epochs.h5')
     # print model.evaluate_generator(val_gen, nb_val_samples)
     # preds = model.predict_generator(test_gen, val_samples=nb_test_samples)
 
+    # exit(1)
 
     start_time = time.time()
     predictions_full = np.zeros((nb_test_samples, nb_classes))
@@ -235,7 +242,7 @@ if __name__ == '__main__':
         for aug in range(nb_aug):
             print("\n--Predicting on Augmentation {0} of {1}...\n".format(aug+1, nb_aug))
             model = vgg16()
-            model.load_weights('vgg16_10epochs.h5')
+            model.load_weights('weights/vgg16_all_10epochs.h5')
             trn_all_gen, trn_gen, val_gen, test_gen = get_vgg_gens(train=False)
             predictions_aug += model.predict_generator(test_gen, val_samples=nb_test_samples)
 
@@ -245,13 +252,17 @@ if __name__ == '__main__':
         print '{} runs in {} sec'.format(run+1, time.time() - start_time)
     
     predictions_full /= nb_runs
-    predictions_full1 = np.clip(predictions_full,0.02, 1.00, out=None)
+    np.save("pred/pred_vgg16_all_10epochs.npy", predictions_full)
+    predictions_full = np.load("pred/pred_vgg16_all_10epochs.npy")
+    # preds = np.clip(predictions_full,0.02, 1.00, out=None)
+    preds = np.clip(predictions_full,0.1, .3, out=None)
 
 
-    with open('submission4.csv', 'w') as f:
+
+    with open('submissions/submission10.csv', 'w') as f:
         print("Writing Predictions to CSV...")
         f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
         for i, image_name in enumerate(test_gen.filenames):
-            pred = ['%.6f' % (p/np.sum(predictions_full[i, :])) for p in predictions_full[i, :]]
+            pred = ['%.6f' % (p/np.sum(preds[i, :])) for p in preds[i, :]]
             f.write('%s,%s\n' % (os.path.basename(image_name), ','.join(pred)))
         print("Done.")
