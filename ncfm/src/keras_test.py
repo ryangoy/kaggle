@@ -1,5 +1,7 @@
+import cv2
 import numpy as np
 import os
+from sklearn.model_selection import train_test_split
 import time
 
 seed = 0
@@ -21,6 +23,44 @@ from keras import optimizers
 
 vgg_size = (270, 480)
 inception_size = (299, 299)
+fish_types = ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']
+nb_trn_all_samples = 3777
+nb_trn_samples = 3210
+nb_val_samples = 567
+nb_test_samples = 1000
+
+def load_data(saved=False):
+    if not saved:
+        X = []
+        y = []
+        index = 0
+        for i in range(len(fish_types)):
+            fish = fish_types[i]
+            for file in os.listdir("train_all/{}".format(fish)):
+                path = "train_all/{}/{}".format(fish, file)
+                # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+                # img = skimage.io.imread(path)
+                img = cv2.imread(path)
+                # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+                # print img.shape
+                img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+                # print img.shape
+                img = img.transpose((2, 0, 1))
+                # print img.shape
+                X += [img]
+                label = [0 for _ in range(len(fish_types))]
+                label[i] = 1
+                y += [label]
+        X = np.array(X)
+        y = np.array(y)
+        print X.shape, y.shape
+        np.save("X.npy", X)
+        np.save("y.npy", y)
+    else:
+        X = np.load('X.npy')
+        y = np.load('y.npy')
+    X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15) DO STRATIFIED CV
+    return X, X_trn, X_val, y, y_trn, y_val
 
 def vgg16():
     px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
@@ -96,7 +136,7 @@ def vgg16():
     model.compile(loss='categorical_crossentropy', optimizer="adadelta", metrics=["accuracy"])
     return model
 
-def get_vgg_gens(train=True, test=True):
+def get_vgg_gens(X=None, X_trn=None, X_val=None, y=None, y_trn=None, y_val=None, train=True, test=True):
     trn_all_path = 'train_all/'
     trn_path = 'train/'
     val_path = 'valid/'
@@ -118,11 +158,23 @@ def get_vgg_gens(train=True, test=True):
                                           channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                           horizontal_flip=True)
         val_datagen = ImageDataGenerator()
-        trn_all_gen = trn_all_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
+        if X != None and y != None:
+            trn_all_gen = trn_all_datagen.flow(X, y, batch_size=batch_size,
+                                                            shuffle=True)
+        else:
+            trn_all_gen = trn_all_datagen.flow_from_directory(trn_all_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
-        trn_gen = trn_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
+        if X_trn != None and y_trn!= None:
+            trn_gen = trn_datagen.flow(X_trn, y_trn, batch_size=batch_size,
+                                                            shuffle=True)
+        else:
+            trn_gen = trn_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
                                                             class_mode='categorical', shuffle=True)
-        val_gen = val_datagen.flow_from_directory(val_path, target_size=size, batch_size=batch_size,
+        if X_val != None and y_val!= None:
+            val_gen = val_datagen.flow(X_val, y_val, batch_size=batch_size,
+                                                               shuffle=True)
+        else:
+            val_gen = val_datagen.flow_from_directory(val_path, target_size=size, batch_size=batch_size,
                                                                class_mode='categorical', shuffle=True)
     
     if test:
@@ -204,33 +256,29 @@ def get_inception_gens(train=True, test=True):
 
 
 if __name__ == '__main__':
-
+    X, X_trn, X_val, y, y_trn, y_val = load_data(saved=True)
 
     # model = inception()
     # trn_all_gen, trn_gen, val_gen, test_gen = get_inception_gens()
     model = vgg16()
-    trn_all_gen, trn_gen, val_gen, test_gen = get_vgg_gens()
+    trn_all_gen, trn_gen, val_gen, test_gen = get_vgg_gens(X=X, X_trn=X_trn, X_val=X_val, y=y, y_trn=y_trn, y_val=y_val)
 
 
-    nb_trn_all_samples = 3777
-    nb_trn_samples = 3210
-    nb_val_samples = 567
-    nb_test_samples = 1000
-    nb_epoch = 20
+    nb_epoch = 10
     nb_classes = 8
 
     nb_runs = 5
     nb_aug = 5
 
     # model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
-    # model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
-                # validation_data=val_gen, nb_val_samples=nb_val_samples)
-    # model.save_weights('weights/vgg16_all_20epochs.h5')
+    model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
+                validation_data=val_gen, nb_val_samples=nb_val_samples)
+    # model.save_weights('weights/vgg16_all_10epochs_relabeled.h5')
     # model.load_weights('weights/vgg16_10epochs.h5')
     # print model.evaluate_generator(val_gen, nb_val_samples)
     # preds = model.predict_generator(test_gen, val_samples=nb_test_samples)
 
-    # exit(1)
+    exit(1)
 
     start_time = time.time()
     predictions_full = np.zeros((nb_test_samples, nb_classes))
@@ -242,7 +290,7 @@ if __name__ == '__main__':
         for aug in range(nb_aug):
             print("\n--Predicting on Augmentation {0} of {1}...\n".format(aug+1, nb_aug))
             model = vgg16()
-            model.load_weights('weights/vgg16_all_10epochs.h5')
+            model.load_weights('weights/vgg16_all_10epochs_relabeled.h5')
             trn_all_gen, trn_gen, val_gen, test_gen = get_vgg_gens(train=False)
             predictions_aug += model.predict_generator(test_gen, val_samples=nb_test_samples)
 
@@ -252,14 +300,16 @@ if __name__ == '__main__':
         print '{} runs in {} sec'.format(run+1, time.time() - start_time)
     
     predictions_full /= nb_runs
-    np.save("pred/pred_vgg16_all_10epochs.npy", predictions_full)
-    predictions_full = np.load("pred/pred_vgg16_all_10epochs.npy")
-    # preds = np.clip(predictions_full,0.02, 1.00, out=None)
-    preds = np.clip(predictions_full,0.1, .3, out=None)
+    np.save("pred/pred_vgg16_all_10epochs_relabeled.npy", predictions_full)
+
+    predictions_full = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy")
+    preds = np.clip(predictions_full,0.02, 1.00, out=None)
+    # preds = np.zeros((nb_test_samples, nb_classes)) + .0414
+    # for i in range(predictions_full.shape[0]):
+    #     preds[i][np.argmax(predictions_full[i])] = .71
 
 
-
-    with open('submissions/submission10.csv', 'w') as f:
+    with open('submissions/submission11.csv', 'w') as f:
         print("Writing Predictions to CSV...")
         f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
         for i, image_name in enumerate(test_gen.filenames):
