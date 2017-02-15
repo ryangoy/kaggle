@@ -1,22 +1,40 @@
 # NCFM fish recognition #
 
 ### To do: ###
+#### Michael: ####
+* automate method to split between train val better
+* check if validation augmentation has any point
+* make validation error and training error closer to test error
+* train more on images producing more error
+* try identifying boats
+* tune hyperparameters
+* blend models
 
-* use [this guy's labels] (https://www.kaggle.com/c/the-nature-conservancy-fisheries-monitoring/forums/t/25565/annotated-mouth-and-tail) to train a CNN to detect points on a fish
-* apply affine transformation to the image and crop
+#### Ryan: ####
 * gamma balance and color balance (anything to do with image standardization i.e. linearlization and normalization)
-* train a vgg16 network on labeled, processed training data 
+* dropout
+* hard negative mining
+* SIFT feature engineering
+* try an R-CNN or SSD
+* decreasing learning rate
 
-#### Other ideas: ####
+### Other ideas: ###
 * account for the fact that some images are night / day (RGB color normalization?)
 * flip right side up
 * use information about similar [boats] (https://www.kaggle.com/anokas/the-nature-conservancy-fisheries-monitoring/finding-boatids)?
-* multiple fishes
+* use the fact that there are sometimes multiple fish in a picture
 * sharpening
 * perspective (non-affine transforms)
 * augment training set: RGB color shift, random scaling, random perspective warp, instead of flipping all images right side up (since this might be imperfect), flip all images vertically so there is exactly 50% right side up, 50% upside down
-* use smaller neural networks due to training set being relatively small (vgg16, zf, etc)
+* use [this guy's labels] (https://www.kaggle.com/c/the-nature-conservancy-fisheries-monitoring/forums/t/25565/annotated-mouth-and-tail) to train a CNN to detect points on a fish
 
-### Useful Repos: ###
+
+### Completed ###
+* basic vgg16 implemented with keras
+* added keras data augmentation for train/test
+* clip probabilities to minimize loss
+* save regular submission csv and modify when reading in/out
+
+## Useful Repos: ##
 * https://github.com/rdcolema/nc-fish-classification
 * https://github.com/pengpaiSH/Kaggle_NCFM
