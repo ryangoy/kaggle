@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 def load_data(valid_percent=.15, 
               fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
               fish_counts = [1745,202,117,68,442,286,177,740],
+              size=(270,480)
               saved=False,
               savefileX='X_default.npy',
               savefileY='y_default.npy'):
