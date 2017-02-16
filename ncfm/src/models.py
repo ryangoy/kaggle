@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dense, Dropout, Flatten
@@ -12,7 +13,7 @@ from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
 from keras import backend as K
 
-def vgg16(size=(270, 480), lr=0.001, dropout=0.4):
+def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
     px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
 
     def vgg_preprocess(x):
@@ -87,8 +88,8 @@ def train_all(model, trn_all_gen, nb_trn_all_samples=3777,
     model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
     model.save_weights('weights/train_all/{}'.format(weightfile))
 
-def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570
-              nb_epoch=10, weightfile='default.h5')
+def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570,
+              nb_epoch=10, weightfile='default.h5'):
     model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
                 validation_data=val_gen, nb_val_samples=nb_val_samples)
     model.save_weights('weights/train_val/{}'.format(weightfile))

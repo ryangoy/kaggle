@@ -7,7 +7,9 @@ from sklearn.model_selection import train_test_split
 def load_data(valid_percent=.15, 
               fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
               fish_counts = [1745,202,117,68,442,286,177,740],
-              saved=False):
+              saved=False,
+              savefileX='X_default.npy',
+              savefileY='y_default.npy'):
     if not saved:
         X = []
         y = []
@@ -32,11 +34,11 @@ def load_data(valid_percent=.15,
         X = np.array(X)
         y = np.array(y)
         print X.shape, y.shape
-        np.save("X_fish_only.npy", X)
-        np.save("y_fish_only.npy", y)
+        np.save(savefileX, X)
+        np.save(savefileY, y)
     else:
-        X = np.load('X_fish_only.npy')
-        y = np.load('y_fish_only.npy')
+        X = np.load(savefileX)
+        y = np.load(savefileY)
     # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
 
     fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
@@ -65,7 +67,7 @@ def load_data(valid_percent=.15,
     # exit(1)
     return X, X_trn, X_val, y, y_trn, y_val
 
-def write_submission(predfile='default.npy', subfile='default.csv'):
+def write_submission(filenames, predfile='default.npy', subfile='default.csv'):
     predictions_full = np.load("pred/{}".format(predfile))
     preds = np.clip(predictions_full,0.02, 1.00, out=None)
     # preds = np.zeros((nb_test_samples, nb_classes)) + .0414
@@ -75,7 +77,7 @@ def write_submission(predfile='default.npy', subfile='default.csv'):
     with open('submissions/{}'.format(subfile), 'w') as f:
         print("Writing Predictions to CSV...")
         f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
-        for i, image_name in enumerate(test_gen.filenames):
+        for i, image_name in enumerate(filenames):
             pred = ['%.6f' % (p/np.sum(preds[i, :])) for p in preds[i, :]]
             f.write('%s,%s\n' % (os.path.basename(image_name), ','.join(pred)))
         print("Done.")
