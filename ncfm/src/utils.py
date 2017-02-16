@@ -1,74 +1,97 @@
-import skimage
-import skimage.io
-import skimage.transform
+import cv2
 import numpy as np
+import os
 
+from sklearn.model_selection import train_test_split
 
-# synset = [l.strip() for l in open('synset.txt').readlines()]
-
-
-# returns image of shape [224, 224, 3]
-# [height, width, depth]
-def load_image(path):
-    # load image
-    img = skimage.io.imread(path)
-    img = img / 255.0
-    assert (0 <= img).all() and (img <= 1.0).all()
-
-    # we crop image from center
-    short_edge = min(img.shape[:2])
-    yy = int((img.shape[0] - short_edge) / 2)
-    xx = int((img.shape[1] - short_edge) / 2)
-    crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
-    # resize to 224, 224
-    resized_img = skimage.transform.resize(crop_img, (224, 224))
-
-
-    return resized_img
-
-
-# returns the top1 string
-def print_prob(prob, file_path):
-    synset = [l.strip() for l in open(file_path).readlines()]
-
-    # print prob
-    pred = np.argsort(prob)[::-1]
-
-    # Get top1 label
-    top1 = synset[pred[0]]
-    print("Top1: ", top1, prob[pred[0]])
-    # Get top5 label
-    top5 = [(synset[pred[i]], prob[pred[i]]) for i in range(5)]
-    print("Top5: ", top5)
-    return top1
-
-
-def load_image2(path, height=None, width=None):
-    # load image
-    img = skimage.io.imread(path)
-    img = img / 255.0
-    if height is not None and width is not None:
-        ny = height
-        nx = width
-    elif height is not None:
-        ny = height
-        nx = img.shape[1] * ny / img.shape[0]
-    elif width is not None:
-        nx = width
-        ny = img.shape[0] * nx / img.shape[1]
+def load_data(valid_percent=.15, 
+              fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
+              fish_counts = [1745,202,117,68,442,286,177,740],
+              saved=False):
+    if not saved:
+        X = []
+        y = []
+        index = 0
+        for i in range(len(fish_types)):
+            fish = fish_types[i]
+            for file in os.listdir("train_all/{}".format(fish)):
+                path = "train_all/{}/{}".format(fish, file)
+                # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+                # img = skimage.io.imread(path)
+                img = cv2.imread(path)
+                # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+                # print img.shape
+                img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+                # print img.shape
+                img = img.transpose((2, 0, 1))
+                # print img.shape
+                X += [img]
+                label = [0 for _ in range(len(fish_types))]
+                label[i] = 1
+                y += [label]
+        X = np.array(X)
+        y = np.array(y)
+        print X.shape, y.shape
+        np.save("X_fish_only.npy", X)
+        np.save("y_fish_only.npy", y)
     else:
-        ny = img.shape[0]
-        nx = img.shape[1]
-    return skimage.transform.resize(img, (ny, nx))
+        X = np.load('X_fish_only.npy')
+        y = np.load('y_fish_only.npy')
+    # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
+
+    fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
+    nb_trn_all_samples = fish_cumulative_counts[-1]
+    nb_trn_samples = int(sum([((1 - valid_percent)*100*c)//100 for c in fish_counts]))
+    nb_val_samples = nb_trn_all_samples - nb_trn_samples
+
+    X_trn = []
+    X_val = []
+    y_trn = []
+    y_val = []
+    for i in range(len(fish_counts)):
+        Xt, Xv, yt, yv = train_test_split(X[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
+                                          y[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
+                                          test_size=valid_percent)
+        X_trn += list(Xt)
+        X_val += list(Xv)
+        y_trn += list(yt)
+        y_val += list(yv)
+    X_trn = np.array(X_trn)
+    X_val = np.array(X_val)
+    y_trn = np.array(y_trn)
+    y_val = np.array(y_val)
+    # print X_trn.shape, y_trn.shape, X_val.shape, y_val.shape
+    # print np.sum(y_trn, axis=0), np.sum(y_val, axis=0)
+    # exit(1)
+    return X, X_trn, X_val, y, y_trn, y_val
+
+def write_submission(predfile='default.npy', subfile='default.csv'):
+    predictions_full = np.load("pred/{}".format(predfile))
+    preds = np.clip(predictions_full,0.02, 1.00, out=None)
+    # preds = np.zeros((nb_test_samples, nb_classes)) + .0414
+    # for i in range(predictions_full.shape[0]):
+    #     preds[i][np.argmax(predictions_full[i])] = .71
+
+    with open('submissions/{}'.format(subfile), 'w') as f:
+        print("Writing Predictions to CSV...")
+        f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
+        for i, image_name in enumerate(test_gen.filenames):
+            pred = ['%.6f' % (p/np.sum(preds[i, :])) for p in preds[i, :]]
+            f.write('%s,%s\n' % (os.path.basename(image_name), ','.join(pred)))
+        print("Done.")
 
 
-def test():
-    img = skimage.io.imread("./test_data/starry_night.jpg")
-    ny = 300
-    nx = img.shape[1] * ny / img.shape[0]
-    img = skimage.transform.resize(img, (ny, nx))
-    skimage.io.imsave("./test_data/test/output.jpg", img)
 
 
-if __name__ == "__main__":
-    test()
+
+
+
+
+
+
+
+
+
+
+
+
