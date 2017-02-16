@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 def load_data(valid_percent=.15, 
               fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
               fish_counts = [1745,202,117,68,442,286,177,740],
-              size=(270,480)
+              size=(270,480),
               saved=False,
               savefileX='X_default.npy',
               savefileY='y_default.npy'):
@@ -24,7 +24,7 @@ def load_data(valid_percent=.15,
                 img = cv2.imread(path)
                 # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
                 # print img.shape
-                img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+                img = cv2.resize(img, (size[1], size[0]), cv2.INTER_LINEAR)
                 # print img.shape
                 img = img.transpose((2, 0, 1))
                 # print img.shape
