@@ -12,6 +12,7 @@ from keras.applications.resnet50 import identity_block, conv_block
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
 from keras import backend as K
+import matplotlib.pyplot as plt
 
 def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
     px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
@@ -80,19 +81,37 @@ def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
     model.add(Dropout(dropout))
     model.add(Dense(nb_classes, activation='softmax', name='predictions'))
 
-    model.compile(loss='categorical_crossentropy', optimizer="adadelta", metrics=["accuracy"])
+    #model.compile(loss='categorical_crossentropy', optimizer="adadelta", metrics=["accuracy"])
+    model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=["accuracy"])
     return model
 
 def train_all(model, trn_all_gen, nb_trn_all_samples=3777,
               nb_epoch=10, weightfile='default.h5'):
-    model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
+    history = model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
     model.save_weights('weights/train_all/{}'.format(weightfile))
 
+
 def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570,
-              nb_epoch=10, weightfile='default.h5'):
-    model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
+              nb_epoch=12, weightfile='default.h5'):
+    history = model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
                 validation_data=val_gen, nb_val_samples=nb_val_samples)
-    model.save_weights('weights/train_val/{}'.format(weightfile))
+    #model.save_weights('weights/train_val/{}'.format(weightfile))
+    print(history.history.keys())
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
 def predict(model, predfile='default.npy', nb_test_samples=1000, nb_classes=8, nb_runs=5, nb_aug=5):
     start_time = time.time()        
@@ -123,7 +142,7 @@ def get_train_all_gens(X=None, y=None, size=(270, 480), batch_size=16):
     trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                       horizontal_flip=True)
-    if X != None and y != None:
+    if X is not None and y is not None:
         trn_all_gen = trn_all_datagen.flow(X, y, batch_size=batch_size,
                                                         shuffle=True)
     else:
@@ -139,13 +158,13 @@ def get_train_val_gens(X_trn=None, X_val=None, y_trn=None, y_val=None, size=(270
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                       horizontal_flip=True)
     val_datagen = ImageDataGenerator()
-    if X_trn != None and y_trn!= None:
+    if X_trn is not None and y_trn is not None:
         trn_gen = trn_datagen.flow(X_trn, y_trn, batch_size=batch_size,
                                                         shuffle=True)
     else:
         trn_gen = trn_datagen.flow_from_directory(trn_path, target_size=size, batch_size=batch_size,
                                                         class_mode='categorical', shuffle=True)
-    if X_val != None and y_val!= None:
+    if X_val is not None and y_val is not None:
         val_gen = val_datagen.flow(X_val, y_val, batch_size=batch_size,
                                                            shuffle=True)
     else:

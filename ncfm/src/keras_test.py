@@ -44,23 +44,23 @@ nb_classes = len(fish_types)
 
 if __name__ == '__main__':
     X, X_trn, X_val, y, y_trn, y_val = utils.load_data(valid_percent=valid_percent, fish_types=fish_types, fish_counts=fish_counts, size=vgg_size,
-                                                       saved=False, savefileX='X.npy', savefileY='y.npy')
+                                                       saved=True, savefileX='X.npy', savefileY='y.npy')
 
     model = models.vgg16()
     trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
     trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
     test_gen = models.get_test_gens(size=vgg_size, batch_size=16)
 
-    nb_epoch = 1
+    nb_epoch = 10
 
     nb_runs = 5
     nb_aug = 5
 
     models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
                      nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
-    # models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
-    #                  nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
-    exit(1)
+    #models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
+    #                 nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
+    #exit(1)
 
     
     # ACTIVATION MAP STUFF
@@ -121,12 +121,12 @@ if __name__ == '__main__':
     # ACTIVATION MAP STUFF
 
 
-    model.load_weights('weights/train_val/vgg16_10epochs_relabeled.h5')
+    model.load_weights('weights/train_all/vgg16_10epochs_relabeled.h5')
     models.predict(model, predfile='pred_vgg16_yolo_10epochs_relabeled.npy',
                    nb_test_samples=1000, nb_classes=8, nb_runs=1, nb_aug=1)
-    exit(1)
 
-    utils.write_submission(test_gen.filenames, predfile='pred_vgg16_yolo_10epochs_relabeled.npy', subfile='submission12.csv')
+
+    utils.write_submission(test_gen.filenames, predfile='pred_vgg16_yolo_10epochs_relabeled.npy', subfile='submission14.csv')
     
 
 
