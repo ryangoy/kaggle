@@ -6,6 +6,24 @@ YFT (yellowfin tuna) :
   * classififed up to img_06769.jpg 
   * IN DECENDING ORDER
   * mahi mahi in images 06971 and 06763
+SHARK:
+  * 101 images
+  * not all labeled, didn't label duplicates past img_04819.jpg
+  * IN DESCENDING ORDER
+LAG (moonfish, opah):
+  * 55 images
+  * not all labeled due to duplicates
+DOL (mahi mahi):
+  * 112 images
+  * most labeled minus a few poor quality images
+BET (Bigeye tuna):
+  * 182 images
+  * most labeled minus a few redundant and poor quality images
+ALB (Albacore tuna):
+  * 204 images
+  * most labeled minus some bad quality images
+  * up to 04852 (desc)
+
 
 ### To do: ###
 #### Michael: ####
