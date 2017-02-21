@@ -20,7 +20,7 @@ import shapely.affinity
 from collections import defaultdict
 
 N_Cls = 10
-inDir = '/home/n01z3/dataset/dstl'
+inDir = '/home/ryan/cs/kaggle/dstl'
 DF = pd.read_csv(inDir + '/train_wkt_v4.csv')
 GS = pd.read_csv(inDir + '/grid_sizes.csv', names=['ImageId', 'Xmax', 'Ymin'], skiprows=1)
 SB = pd.read_csv(os.path.join(inDir, 'sample_submission.csv'))
@@ -371,14 +371,21 @@ def train_net():
 
     model = get_unet()
     model.load_weights('weights/unet_10_jk0.7878')
+    
     model_checkpoint = ModelCheckpoint('weights/unet_tmp.hdf5', monitor='loss', save_best_only=True)
-    for i in range(1):
-        model.fit(x_trn, y_trn, batch_size=64, nb_epoch=1, verbose=1, shuffle=True,
-                  callbacks=[model_checkpoint], validation_data=(x_val, y_val))
+    
+    for i in range(0):
+        print "1"
+        #model.fit(x_trn, y_trn, batch_size=64, nb_epoch=1, verbose=1, shuffle=True,
+        #          callbacks=[model_checkpoint], validation_data=(x_val, y_val))
+        model.fit(x_trn, y_trn, batch_size=16, nb_epoch=1, shuffle=True, validation_data=(x_val, y_val))
+        print "2"
         del x_trn
         del y_trn
+        print "3"
         x_trn, y_trn = get_patches(img, msk)
         score, trs = calc_jacc(model)
+        print "4"
         print 'val jk', score
         model.save_weights('weights/unet_10_jk%.4f' % score)
 
