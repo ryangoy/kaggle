@@ -1,11 +1,11 @@
 # NCFM fish recognition #
 
 ### Labeling: ###
-YFT (yellowfin tuna) 
-  187 images (not including duplicates)
-  classififed up to img_06769.jpg 
-  IN DECENDING ORDER
-  mahi mahi in images 06971 and 06763
+YFT (yellowfin tuna) :
+  * 187 images (not including duplicates)
+  * classififed up to img_06769.jpg 
+  * IN DECENDING ORDER
+  * mahi mahi in images 06971 and 06763
 
 ### To do: ###
 #### Michael: ####
