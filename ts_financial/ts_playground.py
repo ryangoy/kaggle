@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import random
 from sklearn import ensemble, linear_model, metrics
+import time
+
+start_time = time.time()
 
 env = kagglegym.make()
 o = env.reset()
@@ -253,3 +256,5 @@ while True:
     if done:
         print(info["public_score"])
         break
+
+print "time spent: {}".format(time.time() - start_time)
