@@ -3,9 +3,6 @@ import numpy as np
 import pandas as pd
 import random
 from sklearn import ensemble, linear_model, metrics
-import time
-
-start_time = time.time()
 
 env = kagglegym.make()
 o = env.reset()
@@ -15,7 +12,7 @@ d_mean= train.median(axis=0)
 train["nbnulls"]=train.isnull().sum(axis=1)
 col=[x for x in train.columns if x not in ['id', 'timestamp', 'y']]
 
-rnd=6
+rnd=17
 
 #keeping na information on some columns (best selected by the tree algorithms)
 add_nas_ft=True
@@ -256,5 +253,3 @@ while True:
     if done:
         print(info["public_score"])
         break
-
-print "time spent: {}".format(time.time() - start_time)
