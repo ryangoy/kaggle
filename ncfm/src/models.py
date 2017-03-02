@@ -7,7 +7,7 @@ from keras.layers import ZeroPadding2D, MaxPooling2D, GlobalAveragePooling2D, Co
 from keras.layers import Input, Activation, Lambda
 from keras.models import Sequential, Model, load_model
 from keras.preprocessing.image import ImageDataGenerator
-from keras.applications import InceptionV3
+from keras.applications import InceptionV3, vgg16
 from keras.applications.resnet50 import identity_block, conv_block
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
@@ -15,12 +15,14 @@ from keras import backend as K
 import matplotlib.pyplot as plt
 
 def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
-    px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
+    # px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
+    px_mean = np.array([98.428,107.430,96.967]).reshape((3,1,1))
 
     def vgg_preprocess(x):
         x = x - px_mean
         return x[:, ::-1]
     #     return tf.reverse(x, [False, True, False, False]) # for tensorflow only
+        return x
 
     weights_file='weights/vgg16.h5'
 
@@ -81,8 +83,95 @@ def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
     model.add(Dropout(dropout))
     model.add(Dense(nb_classes, activation='softmax', name='predictions'))
 
-    #model.compile(loss='categorical_crossentropy', optimizer="adadelta", metrics=["accuracy"])
-    model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=["accuracy"])
+    # model.compile(loss='categorical_crossentropy', optimizer="nadam", metrics=["accuracy"])
+    # model.compile(loss='categorical_crossentropy', optimizer="adamax", metrics=["accuracy"])
+    # model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=["accuracy"])
+    # model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=["accuracy"])
+    model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=["accuracy", "precision", "recall"])
+    return model
+
+def vgg16_bb(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8, output='regression'):
+    # px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
+    px_mean = np.array([98.428,107.430,96.967]).reshape((3,1,1))
+
+    def vgg_preprocess(x):
+        x = x - px_mean
+        return x[:, ::-1]
+    #     return tf.reverse(x, [False, True, False, False]) # for tensorflow only
+        return x
+
+    weights_file='weights/vgg16.h5'
+
+    model = Sequential()
+    model.add(Lambda(vgg_preprocess, input_shape=(3,)+size))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(Flatten())
+    model.add(Dense(4096, activation='relu'))
+    model.add(Dense(4096, activation='relu'))
+    model.add(Dense(1000, activation='softmax'))
+
+    model.load_weights(weights_file)
+    model.pop(); model.pop(); model.pop()
+
+    for layer in model.layers:
+        layer.trainable = False
+
+    model.add(Dense(4096, activation='relu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(dropout))
+    model.add(Dense(4096, activation='relu', name='pred'))
+    model.add(BatchNormalization())
+    model.add(Dropout(dropout))
+    if output == 'regression':
+        model.add(Dense(4, activation='linear', name='predictions'))
+        # model.compile(loss='mse', optimizer="nadam", metrics=["accuracy"])
+        # model.compile(loss='mse', optimizer="adamax", metrics=["accuracy"])
+        # model.compile(loss='mse', optimizer="adam", metrics=["accuracy"])
+        # model.compile(loss='mse', optimizer='adadelta', metrics=["accuracy"])
+        model.compile(loss='mse', optimizer='adagrad', metrics=["accuracy"])
+    elif output == 'classification':
+        model.add(Dense(2*size[0]+2*size[1], activation='sigmoid', name='predictions'))
+        # model.compile(loss='binary_crossentropy', optimizer="nadam", metrics=["accuracy"])
+        # model.compile(loss='binary_crossentropy', optimizer="adamax", metrics=["accuracy"])
+        model.compile(loss='binary_crossentropy', optimizer="adam", metrics=["accuracy"])
+        # model.compile(loss='binary_crossentropy', optimizer='adadelta', metrics=["accuracy"])
+        # model.compile(loss='binary_crossentropy', optimizer='adagrad', metrics=["accuracy"])
+
     return model
 
 def train_all(model, trn_all_gen, nb_trn_all_samples=3777,
@@ -95,7 +184,7 @@ def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570,
               nb_epoch=12, weightfile='default.h5'):
     history = model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
                 validation_data=val_gen, nb_val_samples=nb_val_samples)
-    #model.save_weights('weights/train_val/{}'.format(weightfile))
+    model.save_weights('weights/train_val/{}'.format(weightfile))
     print(history.history.keys())
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
