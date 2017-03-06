@@ -203,6 +203,89 @@ def load_data_bbox_2point(valid_percent=.15,
     # USE MULTIPLIER WITH X and y
     return X, X_trn, X_val, y, y_trn, y_val
 
+def load_data_cropped(valid_percent=.15, 
+              fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
+              fish_counts = [1745,202,117,68,442,286,177,740],
+              size=(270,480),
+              saved=False,
+              savefileX='X_default.npy',
+              savefileY='y_default.npy'):
+    if not saved:
+        X = []
+        y = []
+        index = 0
+        for i in range(len(fish_types)):
+            fish = fish_types[i]
+            for file in os.listdir("train_all_cropped/{}".format(fish)):
+                path = "train_all_cropped/{}/{}".format(fish, file)
+                # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+                # img = skimage.io.imread(path)
+                img = plt.imread(path)
+                if img.shape[0] > img.shape[1]:
+                    img = img.transpose((1, 0, 2))
+                # plt.imshow(img)
+                # plt.show()
+                # avg = np.mean(np.mean(img, axis=0), axis=0)
+                # if img.shape[0] > img.shape[1]:
+                #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
+                #     start_index = img.shape[0] / 2 - img.shape[1]/2
+                #     temp[:,start_index:start_index+img.shape[1],:] = img
+                # elif img.shape[0] < img.shape[1]:
+                #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
+                #     start_index = img.shape[1] / 2 - img.shape[0]/2
+                #     temp[start_index:start_index+img.shape[0],:,:] = img
+                # # plt.imshow(temp)
+                # # plt.show()
+                # img = temp
+                # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+                # # print img.shape
+                img = cv2.resize(img, (size[1], size[0]), cv2.INTER_LINEAR)
+                # plt.imshow(img)
+                # plt.show()
+                # exit(1)
+                # print img.shape
+                img = img.transpose((2, 0, 1))
+                # print img.shape
+                X += [img]
+                label = [0 for _ in range(len(fish_types))]
+                label[i] = 1
+                y += [label]
+        X = np.array(X)
+        y = np.array(y)
+        print X.shape, y.shape
+        np.save('data_arrays/cropped_data/{}'.format(savefileX), X)
+        np.save('data_arrays/cropped_data/{}'.format(savefileY), y)
+    else:
+        X = np.load('data_arrays/cropped_data/{}'.format(savefileX))
+        y = np.load('data_arrays/cropped_data/{}'.format(savefileY))
+    # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
+
+    fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
+    nb_trn_all_samples = fish_cumulative_counts[-1]
+    nb_trn_samples = int(sum([((1 - valid_percent)*100*c)//100 for c in fish_counts]))
+    nb_val_samples = nb_trn_all_samples - nb_trn_samples
+
+    X_trn = []
+    X_val = []
+    y_trn = []
+    y_val = []
+    for i in range(len(fish_counts)):
+        Xt, Xv, yt, yv = train_test_split(X[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
+                                          y[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
+                                          test_size=valid_percent)
+        X_trn += list(Xt)
+        X_val += list(Xv)
+        y_trn += list(yt)
+        y_val += list(yv)
+    X_trn = np.array(X_trn)
+    X_val = np.array(X_val)
+    y_trn = np.array(y_trn)
+    y_val = np.array(y_val)
+    # print X_trn.shape, y_trn.shape, X_val.shape, y_val.shape
+    # print np.sum(y_trn, axis=0), np.sum(y_val, axis=0)
+    # exit(1)
+    return X, X_trn, X_val, y, y_trn, y_val
+
 def write_submission(filenames, predfile='default.npy', subfile='default.csv'):
     predictions_full = np.load("pred/{}".format(predfile))
     preds = np.clip(predictions_full,0.02, 1.00, out=None)

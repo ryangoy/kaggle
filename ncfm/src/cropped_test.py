@@ -3,13 +3,19 @@ import models
 import numpy as np
 import os
 import sklearn
+from sklearn.model_selection import train_test_split
 import time
 import utils
+
+import matplotlib.pyplot as plt
 
 seed = 0
 np.random.seed(seed)
 
 import theano
+
+import numpy as np
+import time
 
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dense, Dropout, Flatten
@@ -22,10 +28,13 @@ from keras.applications.resnet50 import identity_block, conv_block
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
 from keras import backend as K
+import matplotlib.pyplot as plt
+
 
 valid_percent = .15
 
-vgg_size = (270, 480)
+# vgg_size = (300,300)
+vgg_size = (270,480)
 
 # fish_types = ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']
 # fish_counts = [1745,202,117,68,442,286,177,740]
@@ -34,8 +43,8 @@ vgg_size = (270, 480)
 # fish_multipliers = [1,3,5,2,2,2,2,1]
 
 fish_types = ['ALB','BET','DOL','LAG','OTHER','SHARK','YFT']
-# fish_counts = [1711,199,117,67,299,175,731]
-fish_counts = [1745,202,117,68,286,177,740]
+fish_counts = [1722,199,115,68,286,175,732]
+# fish_counts = [1745,202,117,68,286,177,740]
 fish_multipliers = [1,1,1,1,1,1,1]
 
 fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
@@ -51,12 +60,13 @@ nb_classes = len(fish_types)
 
 
 if __name__ == '__main__':
-    X, X_trn, X_val, y, y_trn, y_val = utils.load_data(valid_percent=valid_percent, fish_types=fish_types, fish_counts=fish_counts, 
-                                                       fish_multipliers=fish_multipliers, size=vgg_size,
+    X, X_trn, X_val, y, y_trn, y_val = utils.load_data_cropped(valid_percent=valid_percent, fish_types=fish_types, fish_counts=fish_counts, 
+                                                       size=vgg_size,
                                                        # saved=True, savefileX='X_preprocessed.npy', savefileY='y_preprocessed.npy')
-                                                       saved=True, savefileX='X_fish_only.npy', savefileY='y_fish_only.npy')
-    trn_mean = np.average(np.average(np.average(X_trn, axis=0), axis=2), axis=1).astype('uint8')
-    val_mean = np.average(np.average(np.average(X_val, axis=0), axis=0), axis=0)
+                                                       saved=True, savefileX='X_cropped_borderless_270x480.npy', savefileY='y_cropped_borderless_270x480.npy')
+    # exit(1)
+    # trn_mean = np.average(np.average(np.average(X_trn, axis=0), axis=2), axis=1).astype('uint8')
+    # val_mean = np.average(np.average(np.average(X_val, axis=0), axis=0), axis=0)
     # for i in range(X_trn.shape[0]):
     #     for j in range(X_trn.shape[2]):
     #         for k in range(X_trn.shape[3]):
@@ -75,20 +85,21 @@ if __name__ == '__main__':
     # print np.average(np.average(np.average(X_trn, axis=0), axis=2), axis=1)
     # TRY USING THESE MEANS, TRY A DIFFERENT LEARNING RATE ADAPTER (optimizer), TRY NOT FLIPPING 2ND COLUMN
     # exit(1)
-    model = models.vgg16(nb_classes=len(fish_types))
-    trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
-    trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
-    test_gen = models.get_test_gens(size=vgg_size, batch_size=16)
+
+
+    model = models.vgg16(size=vgg_size, nb_classes=len(fish_types))
+    # trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
+    # trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
+    # test_gen = models.get_test_gens(size=vgg_size, batch_size=16, test_path='test_cropped/')
 
     nb_epoch = 15
 
     nb_runs = 5
     nb_aug = 5
 
-    # utils.write_submission(test_gen.filenames, predfile='pred_vgg16_all_10epochs_relabeled.npy', subfile='pre_ssd_blend.csv')
     # exit(1)
 
-    # model.load_weights('weights/train_val/vgg16_mult2_10epochs_relabeled.h5')
+    # model.load_weights('weights/train_val/vgg16_cropped.h5')
     # pred = model.predict(X_val, batch_size=16)
     # actual_pred = np.zeros(pred.shape[0])
     # actual_label = np.zeros(pred.shape[0])
@@ -99,20 +110,79 @@ if __name__ == '__main__':
     # print conf
     # print float(np.trace(conf))/float(np.sum(conf))
 
-    # models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
-    #                  nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
-    models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
-                     nb_epoch=nb_epoch, weightfile='vgg16_preprocess.h5')
-    exit(1)
-
-
-
-    model.load_weights('weights/train_val/vgg16_mult2_10epochs_relabeled.h5')
-    models.predict(model, predfile='pred_vgg16_mult2_10epochs_relabeled.npy',
-                   nb_test_samples=1000, nb_classes=8, nb_runs=5, nb_aug=5)
     # exit(1)
 
-    utils.write_submission(test_gen.filenames, predfile='pred_vgg16_mult2_10epochs_relabeled.npy', subfile='submission13.csv')
+    # models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
+                     # nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
+    # models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
+                     # nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
+    # exit(1)
+
+    X_test = []
+    index = 0
+    for file in os.listdir("test_cropped/unknown"):
+        path = "test_cropped/unknown/{}".format(file)
+        # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+        # img = skimage.io.imread(path)
+        img = plt.imread(path)
+        if img.shape[0] > img.shape[1]:
+            img = img.transpose((1, 0, 2))
+        # plt.imshow(img)
+        # plt.show()
+        # avg = np.mean(np.mean(img, axis=0), axis=0)
+        # if img.shape[0] > img.shape[1]:
+        #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
+        #     start_index = img.shape[0] / 2 - img.shape[1]/2
+        #     temp[:,start_index:start_index+img.shape[1],:] = img
+        # elif img.shape[0] < img.shape[1]:
+        #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
+        #     start_index = img.shape[1] / 2 - img.shape[0]/2
+        #     temp[start_index:start_index+img.shape[0],:,:] = img
+        # # plt.imshow(temp)
+        # # plt.show()
+        # img = temp
+        # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+        # # print img.shape
+        img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+        # plt.imshow(img)
+        # plt.show()
+        # exit(1)
+        # print img.shape
+        img = img.transpose((2, 0, 1))
+        # print img.shape
+        X_test += [img]
+    X_test = np.array(X_test)
+    print X_test.shape
+
+    def test_gen_fn():
+        return models.get_test_gens(X_test=X_test, size=vgg_size, batch_size=16, test_path='test_cropped/')
+
+    model.load_weights('weights/train_val/vgg16_cropped.h5')
+    models.predict(model, test_gen_fn=test_gen_fn, predfile='pred_vgg16_cropped.npy',
+                   nb_test_samples=1000, nb_classes=len(fish_types), nb_runs=5, nb_aug=5)
+    exit(1)
+
+    preds = np.load("pred/pred_vgg16_cropped.npy")
+    print np.sum(preds, axis=0)
+    exit(1)
+
+    p2 = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy")
+    for i in range(len(preds)):
+        preds[i] *= (1 - p2[i][4])
+    preds = np.insert(preds, 4, p2[:,4], axis=1)
+    preds = np.clip(preds, 0.02, .98, out=None)
+
+    print np.sum(preds, axis=0)
+
+    with open('submissions/localized.csv', 'w') as f:
+        print("Writing Predictions to CSV...")
+        f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
+        for i, image_name in enumerate(test_gen.filenames):
+            pred = ['%.6f' % (p/np.sum(preds[i, :])) for p in preds[i, :]]
+            f.write('%s,%s\n' % (os.path.basename(image_name), ','.join(pred)))
+        print("Done.")
+
+    # utils.write_submission(test_gen.filenames, predfile='pred_vgg16_cropped.npy', subfile='submission13.csv')
     
 
 

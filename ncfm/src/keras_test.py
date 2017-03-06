@@ -56,6 +56,8 @@ if __name__ == '__main__':
     nb_runs = 5
     nb_aug = 5
 
+    print "start training"
+
     models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
                      nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
     #models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,

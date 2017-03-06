@@ -202,7 +202,7 @@ def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570,
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
 
-def predict(model, predfile='default.npy', nb_test_samples=1000, nb_classes=8, nb_runs=5, nb_aug=5):
+def predict(model, test_gen_fn=None, predfile='default.npy', nb_test_samples=1000, nb_classes=8, nb_runs=5, nb_aug=5):
     start_time = time.time()        
 
     predictions_full = np.zeros((nb_test_samples, nb_classes))
@@ -214,7 +214,10 @@ def predict(model, predfile='default.npy', nb_test_samples=1000, nb_classes=8, n
         for aug in range(nb_aug):
             print("\n--Predicting on Augmentation {0} of {1}...\n".format(aug+1, nb_aug))
             # make this more efficient instead of reading 1k images every time
-            test_gen = get_test_gens()
+            if test_gen_fn == None:
+                test_gen = get_test_gens
+            else:
+                test_gen = test_gen_fn()
             predictions_aug += model.predict_generator(test_gen, val_samples=nb_test_samples)
 
         predictions_aug /= nb_aug
@@ -261,14 +264,16 @@ def get_train_val_gens(X_trn=None, X_val=None, y_trn=None, y_val=None, size=(270
                                                            class_mode='categorical', shuffle=True)
     return trn_gen, val_gen
 
-def get_test_gens(size=(270, 480), batch_size=16):
-    test_path = 'test/'
-
+def get_test_gens(X_test=None, size=(270, 480), batch_size=16, test_path='test/'):
     # test_datagen = ImageDataGenerator()
     test_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                       horizontal_flip=True)
-    test_gen = test_datagen.flow_from_directory(test_path, target_size=size, batch_size=batch_size,
+    if X_test is not None:
+        test_gen = test_datagen.flow(X_test, batch_size=batch_size,
+                                                        shuffle=True)
+    else:
+        test_gen = test_datagen.flow_from_directory(test_path, target_size=size, batch_size=batch_size,
                                                     class_mode='categorical', shuffle=False)
     return test_gen
 
