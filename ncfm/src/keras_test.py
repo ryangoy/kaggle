@@ -49,7 +49,7 @@ if __name__ == '__main__':
     model = models.vgg16()
     trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
     trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
-    test_gen = models.get_test_gens(size=vgg_size, batch_size=16)
+    # test_gen = models.get_test_gens(size=vgg_size, batch_size=16)
 
     nb_epoch = 10
 

@@ -14,7 +14,7 @@ from keras import optimizers
 from keras import backend as K
 import matplotlib.pyplot as plt
 
-def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
+def vgg16(size=(270, 480), lr=0.01, dropout=0.4, nb_classes=8):
     # px_mean = np.array([123.68, 116.779, 103.939]).reshape((3,1,1))
     px_mean = np.array([98.428,107.430,96.967]).reshape((3,1,1))
 
@@ -87,7 +87,9 @@ def vgg16(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8):
     # model.compile(loss='categorical_crossentropy', optimizer="adamax", metrics=["accuracy"])
     # model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=["accuracy"])
     # model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=["accuracy"])
-    model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=["accuracy", "precision", "recall"])
+    # model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=["accuracy"])
+    model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
+    # model.compile(loss='categorical_crossentropy', optimizer=optimizers.SGD(lr=lr, momentum=0.0, decay=0.1, nesterov=True), metrics=["accuracy"])
     return model
 
 def vgg16_bb(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8, output='regression'):
@@ -233,7 +235,7 @@ def get_train_all_gens(X=None, y=None, size=(270, 480), batch_size=16):
     
     trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
-                                      horizontal_flip=True)
+                                      vertical_flip=True)
     if X is not None and y is not None:
         trn_all_gen = trn_all_datagen.flow(X, y, batch_size=batch_size,
                                                         shuffle=True)
@@ -248,7 +250,7 @@ def get_train_val_gens(X_trn=None, X_val=None, y_trn=None, y_val=None, size=(270
 
     trn_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
-                                      horizontal_flip=True)
+                                      vertical_flip=True)
     val_datagen = ImageDataGenerator()
     if X_trn is not None and y_trn is not None:
         trn_gen = trn_datagen.flow(X_trn, y_trn, batch_size=batch_size,
@@ -268,10 +270,10 @@ def get_test_gens(X_test=None, size=(270, 480), batch_size=16, test_path='test/'
     # test_datagen = ImageDataGenerator()
     test_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
-                                      horizontal_flip=True)
+                                      vertical_flip=True)
     if X_test is not None:
         test_gen = test_datagen.flow(X_test, batch_size=batch_size,
-                                                        shuffle=True)
+                                                        shuffle=False)
     else:
         test_gen = test_datagen.flow_from_directory(test_path, target_size=size, batch_size=batch_size,
                                                     class_mode='categorical', shuffle=False)

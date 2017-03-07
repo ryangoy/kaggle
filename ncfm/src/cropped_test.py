@@ -64,6 +64,8 @@ if __name__ == '__main__':
                                                        size=vgg_size,
                                                        # saved=True, savefileX='X_preprocessed.npy', savefileY='y_preprocessed.npy')
                                                        saved=True, savefileX='X_cropped_borderless_270x480.npy', savefileY='y_cropped_borderless_270x480.npy')
+    # print np.sum(y_trn, axis=0)
+    # print np.sum(y_val, axis=0)
     # exit(1)
     # trn_mean = np.average(np.average(np.average(X_trn, axis=0), axis=2), axis=1).astype('uint8')
     # val_mean = np.average(np.average(np.average(X_val, axis=0), axis=0), axis=0)
@@ -85,14 +87,14 @@ if __name__ == '__main__':
     # print np.average(np.average(np.average(X_trn, axis=0), axis=2), axis=1)
     # TRY USING THESE MEANS, TRY A DIFFERENT LEARNING RATE ADAPTER (optimizer), TRY NOT FLIPPING 2ND COLUMN
     # exit(1)
-
+    batch_size = 16
 
     model = models.vgg16(size=vgg_size, nb_classes=len(fish_types))
-    # trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
-    # trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
+    trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=batch_size)
+    trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=batch_size)
     # test_gen = models.get_test_gens(size=vgg_size, batch_size=16, test_path='test_cropped/')
 
-    nb_epoch = 15
+    nb_epoch = 4
 
     nb_runs = 5
     nb_aug = 5
@@ -115,69 +117,114 @@ if __name__ == '__main__':
     # models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
                      # nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
     # models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
-                     # nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
+    #                  nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
     # exit(1)
 
-    X_test = []
-    index = 0
-    for file in os.listdir("test_cropped/unknown"):
-        path = "test_cropped/unknown/{}".format(file)
-        # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
-        # img = skimage.io.imread(path)
-        img = plt.imread(path)
-        if img.shape[0] > img.shape[1]:
-            img = img.transpose((1, 0, 2))
-        # plt.imshow(img)
-        # plt.show()
-        # avg = np.mean(np.mean(img, axis=0), axis=0)
-        # if img.shape[0] > img.shape[1]:
-        #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
-        #     start_index = img.shape[0] / 2 - img.shape[1]/2
-        #     temp[:,start_index:start_index+img.shape[1],:] = img
-        # elif img.shape[0] < img.shape[1]:
-        #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
-        #     start_index = img.shape[1] / 2 - img.shape[0]/2
-        #     temp[start_index:start_index+img.shape[0],:,:] = img
-        # # plt.imshow(temp)
-        # # plt.show()
-        # img = temp
-        # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
-        # # print img.shape
-        img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
-        # plt.imshow(img)
-        # plt.show()
-        # exit(1)
-        # print img.shape
-        img = img.transpose((2, 0, 1))
-        # print img.shape
-        X_test += [img]
-    X_test = np.array(X_test)
-    print X_test.shape
+    # X_test = []
+    # index = 0
+    # for file in sorted(os.listdir("test_cropped/unknown")):
+    #     # print file
+    #     path = "test_cropped/unknown/{}".format(file)
+    #     # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+    #     # img = skimage.io.imread(path)
+    #     img = plt.imread(path)
+    #     if img.shape[0] > img.shape[1]:
+    #         img = img.transpose((1, 0, 2))
+    #     # plt.imshow(img)
+    #     # plt.show()
+    #     # avg = np.mean(np.mean(img, axis=0), axis=0)
+    #     # if img.shape[0] > img.shape[1]:
+    #     #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
+    #     #     start_index = img.shape[0] / 2 - img.shape[1]/2
+    #     #     temp[:,start_index:start_index+img.shape[1],:] = img
+    #     # elif img.shape[0] < img.shape[1]:
+    #     #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
+    #     #     start_index = img.shape[1] / 2 - img.shape[0]/2
+    #     #     temp[start_index:start_index+img.shape[0],:,:] = img
+    #     # # plt.imshow(temp)
+    #     # # plt.show()
+    #     # img = temp
+    #     # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+    #     # # print img.shape
+    #     img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+    #     # plt.imshow(img)
+    #     # plt.show()
+    #     # exit(1)
+    #     # print img.shape
+    #     img = img.transpose((2, 0, 1))
+    #     # print img.shape
+    #     X_test += [img]
+    # X_test = np.array(X_test)
+    # print X_test.shape
+    # # exit(1)
 
-    def test_gen_fn():
-        return models.get_test_gens(X_test=X_test, size=vgg_size, batch_size=16, test_path='test_cropped/')
+    # def test_gen_fn():
+    #     return models.get_test_gens(X_test=X_test, size=vgg_size, batch_size=16, test_path='test_cropped/')
 
-    model.load_weights('weights/train_val/vgg16_cropped.h5')
-    models.predict(model, test_gen_fn=test_gen_fn, predfile='pred_vgg16_cropped.npy',
-                   nb_test_samples=1000, nb_classes=len(fish_types), nb_runs=5, nb_aug=5)
-    exit(1)
+    # model.load_weights('weights/train_val/vgg16_cropped.h5')
+    # models.predict(model, test_gen_fn=test_gen_fn, predfile='pred_vgg16_cropped.npy',
+    #                nb_test_samples=1000, nb_classes=len(fish_types), nb_runs=5, nb_aug=5)
+    # exit(1)
+
+
+    # preds = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy") # better than ssd blend
+    # # preds = np.load("pred/ssd_blend.npy")
+    # preds = np.clip(preds, 0.02, .98, out=None)
+
+    # legit = np.loadtxt('submissions/no_fish.csv', delimiter=',', skiprows=1, usecols=(1,2,3,4,5,6,7,8))
+    
+    # print np.sum(legit, axis=0)
+    # print np.sum(preds, axis=0)
+
+    # actual_pred = np.zeros(preds.shape[0])
+    # actual_label = np.zeros(preds.shape[0])
+    # for i in range(preds.shape[0]):
+    #     actual_pred[i] = np.argmax(legit2[i])
+    #     actual_label[i] = np.argmax(legit[i])
+    # conf = sklearn.metrics.confusion_matrix(actual_pred, actual_label)
+    # print conf
+    # print float(np.trace(conf))/float(np.sum(conf))
+
+    # # print actual_pred
+    # # print actual_label
+    # exit(1)
 
     preds = np.load("pred/pred_vgg16_cropped.npy")
     print np.sum(preds, axis=0)
-    exit(1)
+    # exit(1)
 
+    # p2 = np.load("pred/ssd_blend.npy")
     p2 = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy")
     for i in range(len(preds)):
         preds[i] *= (1 - p2[i][4])
     preds = np.insert(preds, 4, p2[:,4], axis=1)
-    preds = np.clip(preds, 0.02, .98, out=None)
+    preds += p2
+    preds /= 2
 
+    print np.sum(p2, axis=0)
     print np.sum(preds, axis=0)
 
-    with open('submissions/localized.csv', 'w') as f:
+    actual_pred = np.zeros(preds.shape[0])
+    actual_label = np.zeros(preds.shape[0])
+    for i in range(preds.shape[0]):
+        actual_pred[i] = np.argmax(preds[i])
+        actual_label[i] = np.argmax(p2[i])
+    conf = sklearn.metrics.confusion_matrix(actual_pred, actual_label)
+    print conf
+    print float(np.trace(conf))/float(np.sum(conf))
+
+    print actual_pred
+    print actual_label
+
+
+    preds = np.clip(preds, 0.02, .98, out=None)
+
+    filenames = sorted(os.listdir("test_cropped/unknown"))
+    # print filenames[:10]
+    with open('submissions/best4.csv', 'w') as f:
         print("Writing Predictions to CSV...")
         f.write('image,ALB,BET,DOL,LAG,NoF,OTHER,SHARK,YFT\n')
-        for i, image_name in enumerate(test_gen.filenames):
+        for i, image_name in enumerate(filenames):
             pred = ['%.6f' % (p/np.sum(preds[i, :])) for p in preds[i, :]]
             f.write('%s,%s\n' % (os.path.basename(image_name), ','.join(pred)))
         print("Done.")
