@@ -1,10 +1,5 @@
 [
     {
-        "annotations": [],
-        "class": "image",
-        "filename": "temp.jpg"
-    },
-    {
         "annotations": [
             {
                 "class": "point",

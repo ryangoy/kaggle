@@ -1,13 +1,6 @@
 [
     {
         "annotations": [
-            {}
-        ],
-        "class": "image",
-        "filename": "image1.jpg"
-    },
-    {
-        "annotations": [
             {
                 "class": "point",
                 "x": 767.0,

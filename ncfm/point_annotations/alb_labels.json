@@ -3,17 +3,6 @@
         "annotations": [
             {
                 "class": "point", 
-                "x": 409.0, 
-                "y": 155.0
-            }
-        ], 
-        "class": "image", 
-        "filename": "image2.jpg"
-    }, 
-    {
-        "annotations": [
-            {
-                "class": "point", 
                 "x": 825.5028464692997, 
                 "y": 342.8499725255559
             }, 
