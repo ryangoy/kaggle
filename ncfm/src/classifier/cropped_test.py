@@ -1,11 +1,8 @@
 import cv2
-import models
 import numpy as np
 import os
 import sklearn
-from sklearn.model_selection import train_test_split
 import time
-import utils
 
 import matplotlib.pyplot as plt
 
@@ -13,9 +10,6 @@ seed = 0
 np.random.seed(seed)
 
 import theano
-
-import numpy as np
-import time
 
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dense, Dropout, Flatten
@@ -28,7 +22,11 @@ from keras.applications.resnet50 import identity_block, conv_block
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
 from keras import backend as K
-import matplotlib.pyplot as plt
+
+import sys
+sys.path.append('/home/mzhao/Desktop/kaggle/ncfm/src')
+from lib import models
+from lib import utils
 
 
 valid_percent = .15
@@ -116,55 +114,55 @@ if __name__ == '__main__':
 
     # models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
                      # nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
-    # models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
-    #                  nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
+    models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
+                     nb_epoch=nb_epoch, weightfile='vgg16_cropped.h5')
+    exit(1)
+
+    X_test = []
+    index = 0
+    for file in sorted(os.listdir("test_cropped/unknown")):
+        # print file
+        path = "test_cropped/unknown/{}".format(file)
+        # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
+        # img = skimage.io.imread(path)
+        img = plt.imread(path)
+        if img.shape[0] > img.shape[1]:
+            img = img.transpose((1, 0, 2))
+        # plt.imshow(img)
+        # plt.show()
+        # avg = np.mean(np.mean(img, axis=0), axis=0)
+        # if img.shape[0] > img.shape[1]:
+        #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
+        #     start_index = img.shape[0] / 2 - img.shape[1]/2
+        #     temp[:,start_index:start_index+img.shape[1],:] = img
+        # elif img.shape[0] < img.shape[1]:
+        #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
+        #     start_index = img.shape[1] / 2 - img.shape[0]/2
+        #     temp[start_index:start_index+img.shape[0],:,:] = img
+        # # plt.imshow(temp)
+        # # plt.show()
+        # img = temp
+        # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
+        # # print img.shape
+        img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
+        # plt.imshow(img)
+        # plt.show()
+        # exit(1)
+        # print img.shape
+        img = img.transpose((2, 0, 1))
+        # print img.shape
+        X_test += [img]
+    X_test = np.array(X_test)
+    print X_test.shape
     # exit(1)
 
-    # X_test = []
-    # index = 0
-    # for file in sorted(os.listdir("test_cropped/unknown")):
-    #     # print file
-    #     path = "test_cropped/unknown/{}".format(file)
-    #     # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
-    #     # img = skimage.io.imread(path)
-    #     img = plt.imread(path)
-    #     if img.shape[0] > img.shape[1]:
-    #         img = img.transpose((1, 0, 2))
-    #     # plt.imshow(img)
-    #     # plt.show()
-    #     # avg = np.mean(np.mean(img, axis=0), axis=0)
-    #     # if img.shape[0] > img.shape[1]:
-    #     #     temp = np.zeros((img.shape[0], img.shape[0], 3)) + avg
-    #     #     start_index = img.shape[0] / 2 - img.shape[1]/2
-    #     #     temp[:,start_index:start_index+img.shape[1],:] = img
-    #     # elif img.shape[0] < img.shape[1]:
-    #     #     temp = np.zeros((img.shape[1], img.shape[1], 3)) + avg
-    #     #     start_index = img.shape[1] / 2 - img.shape[0]/2
-    #     #     temp[start_index:start_index+img.shape[0],:,:] = img
-    #     # # plt.imshow(temp)
-    #     # # plt.show()
-    #     # img = temp
-    #     # # img = skimage.transform.resize(img, vgg_size).transpose((2, 0, 1))
-    #     # # print img.shape
-    #     img = cv2.resize(img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
-    #     # plt.imshow(img)
-    #     # plt.show()
-    #     # exit(1)
-    #     # print img.shape
-    #     img = img.transpose((2, 0, 1))
-    #     # print img.shape
-    #     X_test += [img]
-    # X_test = np.array(X_test)
-    # print X_test.shape
-    # # exit(1)
+    def test_gen_fn():
+        return models.get_test_gens(X_test=X_test, size=vgg_size, batch_size=16, test_path='test_cropped/')
 
-    # def test_gen_fn():
-    #     return models.get_test_gens(X_test=X_test, size=vgg_size, batch_size=16, test_path='test_cropped/')
-
-    # model.load_weights('weights/train_val/vgg16_cropped.h5')
-    # models.predict(model, test_gen_fn=test_gen_fn, predfile='pred_vgg16_cropped.npy',
-    #                nb_test_samples=1000, nb_classes=len(fish_types), nb_runs=5, nb_aug=5)
-    # exit(1)
+    model.load_weights('weights/train_val/vgg16_cropped.h5')
+    models.predict(model, test_gen_fn=test_gen_fn, predfile='pred_vgg16_cropped.npy',
+                   nb_test_samples=1000, nb_classes=len(fish_types), nb_runs=5, nb_aug=5)
+    exit(1)
 
 
     # preds = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy") # better than ssd blend
@@ -185,16 +183,16 @@ if __name__ == '__main__':
     # print conf
     # print float(np.trace(conf))/float(np.sum(conf))
 
-    # # print actual_pred
-    # # print actual_label
+    # print actual_pred
+    # print actual_label
     # exit(1)
 
     preds = np.load("pred/pred_vgg16_cropped.npy")
     print np.sum(preds, axis=0)
     # exit(1)
 
-    # p2 = np.load("pred/ssd_blend.npy")
-    p2 = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy")
+    p2 = np.load("pred/ssd_blend.npy")
+    # p2 = np.load("pred/pred_vgg16_all_10epochs_relabeled.npy")
     for i in range(len(preds)):
         preds[i] *= (1 - p2[i][4])
     preds = np.insert(preds, 4, p2[:,4], axis=1)

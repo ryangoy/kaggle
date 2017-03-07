@@ -1,9 +1,7 @@
 import cv2
-import models
 import numpy as np
 import os
 import time
-import utils
 
 seed = 0
 np.random.seed(seed)
@@ -21,6 +19,11 @@ from keras.applications.resnet50 import identity_block, conv_block
 from keras.utils.layer_utils import convert_all_kernels_in_model
 from keras import optimizers
 from keras import backend as K
+
+import sys
+sys.path.append('/home/mzhao/Desktop/kaggle/ncfm/src')
+from lib import models
+from lib import utils
 
 valid_percent = .15
 

@@ -3,3 +3,12 @@
 *.h5
 *.csv
 .ipynb_checkpoints/
+annotations/
+test/
+test_cropped/
+train_all/
+train_all_cropped/
+train_all_original/
+train_all_together/
+preprocessed_train/
+src/ssd_keras/
