@@ -32,7 +32,7 @@ from lib import utils
 valid_percent = .15
 
 # vgg_size = (300,300)
-vgg_size = (270,480)
+vgg_size = (224,224)
 
 # fish_types = ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']
 # fish_counts = [1745,202,117,68,442,286,177,740]
@@ -58,6 +58,7 @@ nb_classes = len(fish_types)
 
 
 if __name__ == '__main__':
+    
     X, X_trn, X_val, y, y_trn, y_val = utils.load_data_cropped(valid_percent=valid_percent, fish_types=fish_types, fish_counts=fish_counts, 
                                                        size=vgg_size,
                                                        # saved=True, savefileX='X_preprocessed.npy', savefileY='y_preprocessed.npy')
