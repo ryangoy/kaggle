@@ -30,27 +30,45 @@ valid_percent = .15
 vgg_size = (270, 480)
 
 fish_types = ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']
-fish_counts = [1745,202,117,68,442,286,177,740]
+# fish_counts = [1745,202,117,68,442,286,177,740]
 # fish_types = ['ALB','BET','DOL','LAG','OTHER','SHARK','YFT']
 # fish_counts = [1745,202,117,68,286,177,740]
 
-fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
-nb_trn_all_samples = fish_cumulative_counts[-1]
-nb_trn_samples = int(sum([((1 - valid_percent)*100*c)//100 for c in fish_counts]))
-nb_val_samples = nb_trn_all_samples - nb_trn_samples
+# fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
+# nb_trn_all_samples = fish_cumulative_counts[-1]
+# nb_trn_samples = int(sum([((1 - valid_percent)*100*c)//100 for c in fish_counts]))
+# nb_val_samples = nb_trn_all_samples - nb_trn_samples
+# print [((1 - valid_percent)*100*c)//100 for c in fish_counts]
 # print fish_cumulative_counts
 # print nb_trn_all_samples, nb_trn_samples, nb_val_samples
 
 nb_test_samples = 1000
 nb_classes = len(fish_types)
 
+k=6
 
 if __name__ == '__main__':
-    X, X_trn, X_val, y, y_trn, y_val = utils.load_data(valid_percent=valid_percent, fish_types=fish_types, fish_counts=fish_counts, size=vgg_size,
-                                                       saved=True, savefileX='X.npy', savefileY='y.npy')
+    X, y, X_folds, y_folds, filename_folds = utils.load_data(fish_types=fish_types, size=vgg_size,
+                                        saved=True, savefileX='X.npy', savefileY='y.npy', k=k)
+    # exit(1)
+    X_trn = []
+    X_val = []
+    y_trn = []
+    y_val = []
+    for j in range(k):
+        if j == 0:
+            X_val += list(X_folds[j])
+            y_val += list(y_folds[j])
+        else:
+            X_trn += list(X_folds[j])
+            y_trn += list(y_folds[j])
+    X_trn = np.array(X_trn)
+    X_val = np.array(X_val)
+    y_trn = np.array(y_trn)
+    y_val = np.array(y_val)
 
     model = models.vgg16()
-    trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
+    # trn_all_gen = models.get_train_all_gens(X, y, size=vgg_size, batch_size=16)
     trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, size=vgg_size, batch_size=16)
     # test_gen = models.get_test_gens(size=vgg_size, batch_size=16)
 
@@ -61,77 +79,22 @@ if __name__ == '__main__':
 
     print "start training"
 
-    models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
-                     nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
-    #models.train_val(model, trn_gen, val_gen, nb_trn_samples=nb_trn_samples, nb_val_samples=nb_val_samples,
-    #                 nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
-    #exit(1)
-
-    
-    # ACTIVATION MAP STUFF
-
-    # model.load_weights('weights/train_test/vgg16_10epochs_relabeled.h5')
-    # image_paths = [
-    #     "train_all/ALB/img_00010.jpg"
-    # ]
-
-    # def get_output_layer(model, layer_name):
-    #     # get the symbolic outputs of each "key" layer (we gave them unique names).
-    #     layer_dict = dict([(layer.name, layer) for layer in model.layers])
-    #     layer = layer_dict[layer_name]
-    #     return layer
-
-    # original_img = cv2.imread("train_all/ALB/img_00010.jpg", 1)
-    # original_img = cv2.resize(original_img, (vgg_size[1], vgg_size[0]), cv2.INTER_LINEAR)
-    # width, height, _ = original_img.shape
-
-    # #Reshape to the network input shape (3, w, h).
-    # img = np.array([np.transpose(np.float32(original_img), (2, 0, 1))])
-    
-    # #Get the 512 input weights to the softmax.
-    # print model.layers[-1].get_weights()[0].shape
-    # print model.layers[-2].get_weights()
-    # print model.layers[-3].get_weights()[0].shape
-    # print model.layers[-4].get_weights()[0].shape
-    # print model.layers[-5].get_weights()
-    # print model.layers[-6].get_weights()[0].shape
-    # print model.layers[-7].get_weights()[0].shape
-    # print model.layers[-8].get_weights()
-    # print model.layers[-9].get_weights()
-    # print model.layers[-10].get_weights()[0].shape
-    # class_weights = model.layers[-1].get_weights()[0]
-    # final_conv_layer = get_output_layer(model, "conv5_3")
-    # get_output = K.function([model.layers[0].input, K.learning_phase()], [final_conv_layer.output, model.layers[-1].output])
-    # [conv_outputs, predictions] = get_output([img, 1])
-    # print conv_outputs.shape
-    # conv_outputs = conv_outputs[0, :, :, :]
-
-    # #Create the class activation map.
-    # cam = np.zeros(dtype = np.float32, shape=conv_outputs.shape[1:3])
-    # # print class_weights
-    # print conv_outputs.shape
-    # print class_weights.shape
-    # print len(class_weights[:, 1])
-    # print "predictions", predictions
-    # for i, w in enumerate(class_weights[:, 1]):
-    #     cam += w * conv_outputs[i, :, :]
-    # cam /= np.max(cam)
-    # cam = cv2.resize(cam, (height, width))
-    # heatmap = cv2.applyColorMap(np.uint8(255*cam), cv2.COLORMAP_JET)
-    # heatmap[np.where(cam < 0.2)] = 0
-    # img = heatmap*0.5 + original_img
-    # cv2.imwrite("hmm.jpg", img)
-
-    # exit(1)
-    # ACTIVATION MAP STUFF
+    # models.train_all(model, trn_all_gen, nb_trn_all_samples=nb_trn_all_samples,
+                     # nb_epoch=nb_epoch, weightfile='vgg16_10epochs_relabeled.h5')
+    models.train_val(model, trn_gen, val_gen, nb_trn_samples=X_trn.shape[0], nb_val_samples=X_val.shape[0],
+                    nb_epoch=nb_epoch, weightfile='vgg16_stack.h5')
+    exit(1)
 
 
-    model.load_weights('weights/train_all/vgg16_10epochs_relabeled.h5')
+    # model.load_weights('weights/train_all/vgg16_10epochs_relabeled.h5')
+    model.load_weights('weights/train_val/vgg16_stack.h5')
+
     models.predict(model, predfile='pred_vgg16_yolo_10epochs_relabeled.npy',
                    nb_test_samples=1000, nb_classes=8, nb_runs=1, nb_aug=1)
 
+    exit(1)
 
-    utils.write_submission(test_gen.filenames, predfile='pred_vgg16_yolo_10epochs_relabeled.npy', subfile='submission14.csv')
+    # utils.write_submission(test_gen.filenames, predfile='pred_vgg16_yolo_10epochs_relabeled.npy', subfile='submission14.csv')
     
 
 

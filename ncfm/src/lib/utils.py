@@ -5,15 +5,66 @@ import numpy as np
 import os
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 
-def load_data(valid_percent=.15, 
+# large prime for modding
+prime = 10007
+
+def split_k_folds(k=3, fold_file=None):
+    # images with no bbox annotation
+    # for fish in ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']:
+    #     l1 = sorted(os.listdir("train_all/{}".format(fish)))
+    #     l2 = sorted(os.listdir("train_all_cropped2/{}".format(fish)))
+    #     print sorted(list(set(l1) - set(l2)))
+    # exit(1)
+    if fold_file != None and os.path.isfile(fold_file):
+        with open(fold_file, 'r') as f:
+            info = json.load(f)
+            file2set = info['file2set']
+            checksums = info['checksums']
+            file_folds = info['file_folds']
+    else:
+        file_folds = [[] for _ in range(k)]
+        index = 0
+        # counts = [0 for _ in range(k)]
+        checksums = [0 for _ in range(k)]
+        for fish in ['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT']:
+            files = sorted(os.listdir("train_all_cropped2/{}".format(fish)))
+            np.random.shuffle(files)
+            for f in files:
+                file_folds[index] += [f]
+                # file2set[f] = index
+                # counts[index] += 1
+                index = (index + 1) % k
+            # print counts
+        file2set = {}
+        for i in range(len(file_folds)):
+            file_folds[i] = sorted(file_folds[i])
+            # print file_folds[i][:10]
+            count = 0
+            for file in file_folds[i]:
+                file2set[file] = i
+                checksums[i] = (checksums[i] + int(file[5:9]))**2 % prime
+        # print len(file2set)
+        # print fold_file
+        if fold_file != None:
+            info = {}
+            info['file2set'] = file2set
+            info['checksums'] = checksums
+            info['file_folds'] = file_folds
+            with open(fold_file, 'w') as f:
+                json.dump(info, f)
+    print checksums
+    return file2set, checksums, file_folds
+
+
+def load_data(fold_file=None,
               fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
-              fish_counts = [1745,202,117,68,442,286,177,740],
-              fish_multipliers = [1,1,1,1,1,1,1,1],
               size=(270,480),
               saved=False,
               savefileX='X_default.npy',
-              savefileY='y_default.npy'):
+              savefileY='y_default.npy',
+              k=3):
     if not saved:
         X = []
         y = []
@@ -21,7 +72,7 @@ def load_data(valid_percent=.15,
         for i in range(len(fish_types)):
             fish = fish_types[i]
             # for file in os.listdir("preprocessed_train/{}".format(fish)):
-            for file in os.listdir("train_all/{}".format(fish)):
+            for file in sorted(os.listdir("train_all/{}".format(fish))):
                 # path = "preprocessed_train/{}/{}".format(fish, file)
                 path = "train_all/{}/{}".format(fish, file)
                 # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
@@ -45,179 +96,62 @@ def load_data(valid_percent=.15,
     else:
         X = np.load('data_arrays/e2e_data/{}'.format(savefileX))
         y = np.load('data_arrays/e2e_data/{}'.format(savefileY))
-    # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
-    # fish_mult_counts = [fish_counts[i] * fish_multipliers[i] for i in range(len(fish_counts))]
-    fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
-    nb_trn_all_samples = fish_cumulative_counts[-1]
-    trn_samples_counts = [((1 - valid_percent)*100*c)//100 for c in fish_counts]
-    nb_val_samples = nb_trn_all_samples - int(sum(trn_samples_counts))
-    nb_trn_samples = int(sum([trn_samples_counts[i] * fish_multipliers[i] for i in range(len(fish_multipliers))]))
 
-    X_trn = []
-    X_val = []
-    y_trn = []
-    y_val = []
-    for i in range(len(fish_counts)):
-        Xt, Xv, yt, yv = train_test_split(X[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          y[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          test_size=valid_percent)
+    X_folds = [[] for _ in range(k)]
+    y_folds = [[] for _ in range(k)]
+    filename_folds = [[] for _ in range(k)]
 
-        for _ in range(fish_multipliers[i]):
-            X_trn += list(Xt)
-            y_trn += list(yt)
-        X_val += list(Xv)
-        y_val += list(yv)
-    X_trn = np.array(X_trn)
-    X_val = np.array(X_val)
-    y_trn = np.array(y_trn)
-    y_val = np.array(y_val)
-    # print X_trn.shape, y_trn.shape, X_val.shape, y_val.shape
-    # print nb_trn_all_samples, nb_trn_samples, nb_val_samples
-    # print np.sum(y_trn, axis=0), np.sum(y_val, axis=0)
+    files = []
+    for i in range(len(fish_types)):
+        fish = fish_types[i]
+        files += os.listdir("train_all/{}".format(fish))
+    files.sort()
+
+    file2set, expected_checksums, file_folds = split_k_folds(k=k, fold_file=fold_file)
+
+    checksums = [0 for _ in range(k)]
+
+    for i in range(len(files)):
+        if files[i] not in file2set:
+            # print files[i]
+            continue
+        X_folds[file2set[files[i]]] += [list(X[i])]
+        y_folds[file2set[files[i]]] += [list(y[i])]
+        filename_folds[file2set[files[i]]] += [files[i]]
+        checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9]))**2 % prime
+        # checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9])**2) % prime
+    for i in range(k):
+        if filename_folds[i] != file_folds[i]:
+            raise Exception('fold file orders do not match, make sure folds are the same')
+    for i in range(k):
+        X_folds[i] = np.array(X_folds[i])
+        y_folds[i] = np.array(y_folds[i])
+        print '[FOLD {}]'.format(i+1)
+        print X_folds[i].shape, y_folds[i].shape
+        print np.sum(y_folds[i], axis=0)
+    if checksums != expected_checksums:
+        print checksums
+        raise Exception('checksums do not match, make sure folds are the same')
+    print 'checksums match'
     # exit(1)
-    # USE MULTIPLIER WITH X and y
-    return X, X_trn, X_val, y, y_trn, y_val
+    return X, y, X_folds, y_folds, filename_folds
 
-def load_data_bbox_2point(valid_percent=.15, 
-              fish_types=['ALB','BET','DOL','LAG','OTHER','SHARK','YFT'],
-              fish_counts = [1745,202,117,68,286,177,740],
-              fish_multipliers = [1,1,1,1,1,1,1],
+
+def load_data_cropped(fold_file=None,
+              fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
               size=(270,480),
               saved=False,
               savefileX='X_default.npy',
               savefileY='y_default.npy',
-              output='regression'):
-    if not saved:
-        X = []
-        y = []
-
-        annotation_files = ['alb_labels.json',
-                            'bet_labels.json',
-                            'dol_labels.json',
-                            'lag_labels.json',
-                            'other_labels.json',
-                            'shark_labels.json',
-                            'yft_labels.json']
-        name_to_2point = {}
-        # no_annotation = 0
-        for file in annotation_files:
-            with open('annotations/{}'.format(file)) as f:
-                annotations = json.load(f)
-            for fish in annotations:
-                if len(fish['annotations']) != 2:
-                    # no_annotation += 1
-                    continue
-                points = [fish['annotations'][0]['x'], fish['annotations'][0]['y'], 
-                         fish['annotations'][1]['x'], fish['annotations'][1]['y']]
-                name_to_2point[fish['filename']] = points
-            # print no_annotation
-
-        # unused = 0
-        # used = 0
-        index = 0
-        for i in range(len(fish_types)):
-            fish = fish_types[i]
-            for file in os.listdir("train_all/{}".format(fish)):
-                path = "train_all/{}/{}".format(fish, file)
-                img = cv2.imread(path)
-                original_shape = img.shape
-                # plt.figure()
-                # plt.imshow(img)
-                # plt.scatter(name_to_2point[file][0], name_to_2point[file][1], s=25, c='green', marker='o')
-                # plt.scatter(name_to_2point[file][2], name_to_2point[file][3], s=25, c='red', marker='o')
-                # plt.show()
-                img = cv2.resize(img, (size[1], size[0]), cv2.INTER_LINEAR)
-                img = img.transpose((2, 0, 1))
-                if file in name_to_2point:
-                    # used += 1
-                    X += [img]
-                    if output == 'regression':
-                        y += [name_to_2point[file]]
-                    elif output == 'classification':
-                        x1c = int((name_to_2point[file][0] * size[1]) // original_shape[1])
-                        y1c = int((name_to_2point[file][1] * size[0]) // original_shape[0])
-                        x2c = int((name_to_2point[file][2] * size[1]) // original_shape[1])
-                        y2c = int((name_to_2point[file][3] * size[0]) // original_shape[0])
-                        # print x1c, y1c, x2c, y2c
-                        # plt.figure()
-                        # plt.imshow(img.transpose(1, 2, 0))
-                        # plt.scatter(x1c, y1c, s=25, c='green', marker='o')
-                        # plt.scatter(x2c, y2c, s=25, c='red', marker='o')
-                        # plt.show()
-
-                        x1 = [0 for _ in range(size[1])]
-                        x1[x1c] = 1
-                        y1 = [0 for _ in range(size[0])]
-                        y1[y1c] = 1
-                        x2 = [0 for _ in range(size[1])]
-                        x2[x2c] = 1
-                        y2 = [0 for _ in range(size[0])]
-                        y2[y2c] = 1
-
-                        y += [x1+y1+x2+y2]
-                        # exit(1)
-                    else:
-                        raise Exception('must chose between regression and classification')
-                # else:
-                    # unused += 1
-            # print used, unused
-        X = np.array(X)
-        y = np.array(y)
-        print X.shape, y.shape
-        np.save('data_arrays/bb_data/{}'.format(savefileX), X)
-        np.save('data_arrays/bb_data/{}'.format(savefileY), y)
-        # exit(1)
-    else:
-        X = np.load('data_arrays/bb_data/{}'.format(savefileX))
-        y = np.load('data_arrays/bb_data/{}'.format(savefileY))
-    # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
-    # fish_mult_counts = [fish_counts[i] * fish_multipliers[i] for i in range(len(fish_counts))]
-    fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
-    nb_trn_all_samples = fish_cumulative_counts[-1]
-    trn_samples_counts = [((1 - valid_percent)*100*c)//100 for c in fish_counts]
-    nb_val_samples = nb_trn_all_samples - int(sum(trn_samples_counts))
-    nb_trn_samples = int(sum([trn_samples_counts[i] * fish_multipliers[i] for i in range(len(fish_multipliers))]))
-
-    X_trn = []
-    X_val = []
-    y_trn = []
-    y_val = []
-    for i in range(len(fish_counts)):
-        Xt, Xv, yt, yv = train_test_split(X[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          y[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          test_size=valid_percent)
-
-        for _ in range(fish_multipliers[i]):
-            X_trn += list(Xt)
-            y_trn += list(yt)
-        X_val += list(Xv)
-        y_val += list(yv)
-    X_trn = np.array(X_trn)
-    X_val = np.array(X_val)
-    y_trn = np.array(y_trn)
-    y_val = np.array(y_val)
-    # print X_trn.shape, y_trn.shape, X_val.shape, y_val.shape
-    # print nb_trn_all_samples, nb_trn_samples, nb_val_samples
-    # print np.sum(y_trn, axis=0), np.sum(y_val, axis=0)
-    # exit(1)
-    # USE MULTIPLIER WITH X and y
-    return X, X_trn, X_val, y, y_trn, y_val
-
-def load_data_cropped(valid_percent=.15, 
-              fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
-              fish_counts = [1745,202,117,68,442,286,177,740],
-              size=(270,480),
-              saved=False,
-              savefileX='X_default.npy',
-              savefileY='y_default.npy'):
+              k=3):
     if not saved:
         X = []
         y = []
         index = 0
         for i in range(len(fish_types)):
             fish = fish_types[i]
-            for file in os.listdir("train_all_cropped/{}".format(fish)):
-                path = "train_all_cropped/{}/{}".format(fish, file)
+            for file in sorted(os.listdir("train_all_cropped2/{}".format(fish))):
+                path = "train_all_cropped2/{}/{}".format(fish, file)
                 # img = np.array(keras.preprocessing.image.load_img(path, target_size=vgg_size))
                 # img = skimage.io.imread(path)
                 img = plt.imread(path)
@@ -258,33 +192,46 @@ def load_data_cropped(valid_percent=.15,
     else:
         X = np.load('data_arrays/cropped_data/{}'.format(savefileX))
         y = np.load('data_arrays/cropped_data/{}'.format(savefileY))
-    # X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.15)
+    
+    X_folds = [[] for _ in range(k)]
+    y_folds = [[] for _ in range(k)]
+    filename_folds = [[] for _ in range(k)]
 
-    fish_cumulative_counts = [0] + [sum(fish_counts[:i+1]) for i in range(len(fish_counts))]
-    nb_trn_all_samples = fish_cumulative_counts[-1]
-    nb_trn_samples = int(sum([((1 - valid_percent)*100*c)//100 for c in fish_counts]))
-    nb_val_samples = nb_trn_all_samples - nb_trn_samples
+    files = []
+    for i in range(len(fish_types)):
+        fish = fish_types[i]
+        files += os.listdir("train_all_cropped2/{}".format(fish))
+    files.sort()
 
-    X_trn = []
-    X_val = []
-    y_trn = []
-    y_val = []
-    for i in range(len(fish_counts)):
-        Xt, Xv, yt, yv = train_test_split(X[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          y[fish_cumulative_counts[i]:fish_cumulative_counts[i+1]], 
-                                          test_size=valid_percent)
-        X_trn += list(Xt)
-        X_val += list(Xv)
-        y_trn += list(yt)
-        y_val += list(yv)
-    X_trn = np.array(X_trn)
-    X_val = np.array(X_val)
-    y_trn = np.array(y_trn)
-    y_val = np.array(y_val)
-    # print X_trn.shape, y_trn.shape, X_val.shape, y_val.shape
-    # print np.sum(y_trn, axis=0), np.sum(y_val, axis=0)
+    file2set, expected_checksums, file_folds = split_k_folds(k=k, fold_file=fold_file)
+
+    checksums = [0 for _ in range(k)]
+
+    for i in range(len(files)):
+        if files[i] not in file2set:
+            # print files[i]
+            continue
+        X_folds[file2set[files[i]]] += [list(X[i])]
+        y_folds[file2set[files[i]]] += [list(y[i])]
+        filename_folds[file2set[files[i]]] += [files[i]]
+        checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9]))**2 % prime
+        # checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9])**2) % prime
+    for i in range(k):
+        if filename_folds[i] != file_folds[i]:
+            raise Exception('fold file orders do not match, make sure folds are the same')
+    for i in range(k):
+        X_folds[i] = np.array(X_folds[i])
+        y_folds[i] = np.array(y_folds[i])
+        print '[FOLD {}]'.format(i+1)
+        print X_folds[i].shape, y_folds[i].shape
+        print np.sum(y_folds[i], axis=0)
+    if checksums != expected_checksums:
+        print checksums
+        raise Exception('checksums do not match, make sure folds are the same')
+    print 'checksums match'
     # exit(1)
-    return X, X_trn, X_val, y, y_trn, y_val
+    return X, y, X_folds, y_folds, filename_folds
+
 
 def write_submission(filenames, predfile='default.npy', subfile='default.csv'):
     predictions_full = np.load("pred/{}".format(predfile))
