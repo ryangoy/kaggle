@@ -176,6 +176,74 @@ def vgg16_bb(size=(270, 480), lr=0.001, dropout=0.4, nb_classes=8, output='regre
 
     return model
 
+def mean_error(y_true, y_pred):
+    return K.mean(y_true-y_pred)
+
+
+def aligner_vgg16(weights_file='weights/vgg16.h5', size=(270, 480), lr=0.001, dropout=0.4):
+
+    model = Sequential()
+    #model.add(Lambda(vgg_preprocess, input_shape=size+(3,)))
+    model.add(ZeroPadding2D((1,1), input_shape=(3,)+size))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
+    model.add(ZeroPadding2D((1,1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+    model.add(MaxPooling2D((2,2), strides=(2,2)))
+
+    model.add(Flatten())
+    model.add(Dense(4096, activation='relu'))
+    model.add(Dense(4096, activation='relu'))
+    model.add(Dense(1000, activation='softmax'))
+
+    model.load_weights(weights_file)
+    model.pop(); model.pop(); model.pop()
+
+    for layer in model.layers:
+        layer.trainable = False
+
+    model.add(Dense(4096, activation='relu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(dropout))
+    model.add(Dense(4096, activation='relu', name='pred'))
+    # model.add(BatchNormalization())
+    # model.add(Dropout(dropout))
+
+    model.add(Dense(1, name='predictions'))
+    model.compile(loss='mse', optimizer='adam')
+    return model
+
+
+
 def train_all(model, trn_all_gen, nb_trn_all_samples=3777,
               nb_epoch=10, weightfile='default.h5'):
     history = model.fit_generator(trn_all_gen, samples_per_epoch=nb_trn_all_samples, nb_epoch=nb_epoch, verbose=2)
