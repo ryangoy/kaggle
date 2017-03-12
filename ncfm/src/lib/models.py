@@ -217,7 +217,7 @@ def aligner_vgg16(weights_file='weights/vgg16.h5', size=(270, 480), lr=0.001, dr
     model.add(ZeroPadding2D((1,1)))
     model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1,1)))
-    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+    model.add(Convolution2D(512, 3, 3, activation='relu'))
     model.add(MaxPooling2D((2,2), strides=(2,2)))
 
     model.add(Flatten())
@@ -231,15 +231,15 @@ def aligner_vgg16(weights_file='weights/vgg16.h5', size=(270, 480), lr=0.001, dr
     for layer in model.layers:
         layer.trainable = False
 
-    model.add(Dense(4096, activation='relu'))
-    model.add(BatchNormalization())
-    model.add(Dropout(dropout))
-    model.add(Dense(4096, activation='relu', name='pred'))
+    model.add(Dense(1024, activation='relu'))
+    # model.add(BatchNormalization())
+    # model.add(Dropout(dropout))
+    model.add(Dense(256, activation='relu'))
     # model.add(BatchNormalization())
     # model.add(Dropout(dropout))
 
-    model.add(Dense(1, name='predictions'))
-    model.compile(loss='mse', optimizer='adam')
+    model.add(Dense(1, activation='linear'))
+    model.compile(loss='mean_absolute_error', optimizer='adam')
     return model
 
 
