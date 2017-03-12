@@ -27,7 +27,7 @@ def vgg16(size=(270, 480), lr=0.01, dropout=0.4, nb_classes=8):
     weights_file='weights/vgg16.h5'
 
     model = Sequential()
-    model.add(Lambda(vgg_preprocess, input_shape=(3,)+size))
+    model.add(Lambda(vgg_preprocess, input_shape=(3,)+size, output_shape=(3,)+size))
     model.add(ZeroPadding2D((1,1)))
     model.add(Convolution2D(64, 3, 3, activation='relu'))
     model.add(ZeroPadding2D((1,1)))
@@ -254,7 +254,7 @@ def train_val(model, trn_gen, val_gen, nb_trn_samples=3207, nb_val_samples=570,
               nb_epoch=12, weightfile='default.h5'):
     history = model.fit_generator(trn_gen, samples_per_epoch=nb_trn_samples, nb_epoch=nb_epoch, verbose=2,
                 validation_data=val_gen, nb_val_samples=nb_val_samples)
-    model.save_weights('weights/train_val/{}'.format(weightfile))
+    # model.save_weights('weights/train_val/{}'.format(weightfile))
     print(history.history.keys())
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
@@ -319,7 +319,9 @@ def get_train_val_gens(X_trn=None, X_val=None, y_trn=None, y_val=None, size=(270
     trn_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
                                       channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
                                       vertical_flip=True)
-    val_datagen = ImageDataGenerator()
+    val_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
+                                      channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
+                                      vertical_flip=True)
     if X_trn is not None and y_trn is not None:
         trn_gen = trn_datagen.flow(X_trn, y_trn, batch_size=batch_size,
                                                         shuffle=True)
@@ -328,10 +330,10 @@ def get_train_val_gens(X_trn=None, X_val=None, y_trn=None, y_val=None, size=(270
                                                         class_mode='categorical', shuffle=True)
     if X_val is not None and y_val is not None:
         val_gen = val_datagen.flow(X_val, y_val, batch_size=batch_size,
-                                                           shuffle=True)
+                                                           shuffle=False)
     else:
         val_gen = val_datagen.flow_from_directory(val_path, target_size=size, batch_size=batch_size,
-                                                           class_mode='categorical', shuffle=True)
+                                                           class_mode='categorical', shuffle=False)
     return trn_gen, val_gen
 
 def get_test_gens(X_test=None, size=(270, 480), batch_size=16, test_path='test/'):
