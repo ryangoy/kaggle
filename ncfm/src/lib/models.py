@@ -285,7 +285,7 @@ def predict(model, test_gen_fn=None, predfile='default.npy', nb_test_samples=100
             print("\n--Predicting on Augmentation {0} of {1}...\n".format(aug+1, nb_aug))
             # make this more efficient instead of reading 1k images every time
             if test_gen_fn == None:
-                test_gen = get_test_gens
+                test_gen = get_test_gens()
             else:
                 test_gen = test_gen_fn()
             predictions_aug += model.predict_generator(test_gen, val_samples=nb_test_samples)
