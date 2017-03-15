@@ -254,6 +254,73 @@ def load_data_cropped(fold_file=None,
     # exit(1)
     return X, y, X_folds, y_folds, filename_folds
 
+def load_data_aligned(fold_file=None,
+              fish_types=['ALB','BET','DOL','LAG','NoF','OTHER','SHARK','YFT'],
+              size=(224,224),
+              saved=False,
+              savefileX='X_default.npy',
+              savefileY='y_default.npy',
+              k=3):
+
+    X = []
+    y = []
+    index = 0
+    for i in range(len(fish_types)):
+        fish = fish_types[i]
+        for file in sorted(os.listdir("train_all_cropped2/{}".format(fish))):
+            path = "train_all_cropped2/{}/{}".format(fish, file)
+            img = plt.imread(path)
+            if img.shape[0] > img.shape[1]:
+                img = img.transpose((1, 0, 2))
+            img = cv2.resize(img, (size[1], size[0]), cv2.INTER_LINEAR)
+            img = img.transpose((2, 0, 1))
+            X += [img]
+            label = [0 for _ in range(len(fish_types))]
+            label[i] = 1
+            y += [label]
+    X = np.array(X)
+    y = np.array(y)
+    print X.shape, y.shape
+    
+    X_folds = [[] for _ in range(k)]
+    y_folds = [[] for _ in range(k)]
+    filename_folds = [[] for _ in range(k)]
+
+    files = []
+    for i in range(len(fish_types)):
+        fish = fish_types[i]
+        files += os.listdir("train_all_cropped2/{}".format(fish))
+    files.sort()
+
+    file2set, expected_checksums, file_folds = split_k_folds(k=k, fold_file=fold_file)
+
+    checksums = [0 for _ in range(k)]
+
+    for i in range(len(files)):
+        if files[i] not in file2set:
+            # print files[i]
+            continue
+        X_folds[file2set[files[i]]] += [list(X[i])]
+        y_folds[file2set[files[i]]] += [list(y[i])]
+        filename_folds[file2set[files[i]]] += [files[i]]
+        checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9]))**2 % prime
+        # checksums[file2set[files[i]]] = (checksums[file2set[files[i]]] + int(files[i][5:9])**2) % prime
+    for i in range(k):
+        if filename_folds[i] != file_folds[i]:
+            raise Exception('fold file orders do not match, make sure folds are the same')
+    for i in range(k):
+        X_folds[i] = np.array(X_folds[i])
+        y_folds[i] = np.array(y_folds[i])
+        print '[FOLD {}]'.format(i+1)
+        print X_folds[i].shape, y_folds[i].shape
+        print np.sum(y_folds[i], axis=0)
+    if checksums != expected_checksums:
+        print checksums
+        raise Exception('checksums do not match, make sure folds are the same')
+    print 'checksums match'
+    # exit(1)
+    return X, y, X_folds, y_folds, filename_folds
+
 
 def write_submission(filenames, predfile='default.npy', subfile='default.csv'):
     predictions_full = np.load("pred/{}".format(predfile))
