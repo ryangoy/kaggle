@@ -271,6 +271,96 @@ def mean_error(y_true, y_pred):
     return K.mean(y_true-y_pred)
 
 
+
+def aligner_VGG16(weights_path, include_top=True, weights='imagenet',
+          input_tensor=None, input_shape=(224, 224, 3),
+          pooling=None):
+   
+
+    if input_tensor is None:
+        img_input = Input(shape=input_shape)
+    else:
+        if not K.is_keras_tensor(input_tensor):
+            img_input = Input(tensor=input_tensor, shape=input_shape)
+        else:
+            img_input = input_tensor
+
+    model = Sequential()
+    # Block 1
+    model.add(Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv1', input_shape=input_shape))
+    model.add(Convolution2D(64, 3, 3, activation='relu', border_mode='same', name='block1_conv2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool'))
+
+    # Block 2
+    model.add(Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv1'))
+    model.add(Convolution2D(128, 3, 3, activation='relu', border_mode='same', name='block2_conv2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool'))
+
+    # Block 3
+    model.add(Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv1'))
+    model.add(Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv2'))
+    model.add(Convolution2D(256, 3, 3, activation='relu', border_mode='same', name='block3_conv3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block3_pool'))
+
+    # Block 4
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv1'))
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv2'))
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block4_conv3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block4_pool'))
+
+    # Block 5
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv1'))
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv2'))
+    model.add(Convolution2D(512, 3, 3, activation='relu', border_mode='same', name='block5_conv3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool'))
+
+   
+    if include_top:
+        # Classification block
+        model.add(Flatten(name='flatten'))
+        model.add(Dense(4096, activation='relu', name='fc1'))
+        model.add(Dense(4096, activation='relu', name='fc2'))
+        model.add(Dense(1000, activation='softmax', name='predictions'))
+
+    
+
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    
+    #model = Model(inputs, x, name='vgg16')
+
+    # load weights
+    model.load_weights(weights_path)
+
+    for layer in model.layers:
+        layer.trainable = False
+
+    model.layers.pop()
+    model.layers.pop()
+    model.layers.pop()
+    dropout = .5
+    model.outputs = [model.layers[-1].output]
+    model.layers[-1].outbound_nodes = []
+    model.add(Dense(4096, activation='relu'))
+    model.add(BatchNormalization())
+    model.add(Dropout(dropout))
+    model.add(Dense(4096, activation='relu', name='pred'))
+    model.add(BatchNormalization())
+    model.add(Dropout(dropout))
+    #model.add(Dense(classes, activation='softmax', name='predictions'))
+    #model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=["accuracy"])
+    #model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
+
+    model.add(Dense(1, activation='linear'))
+    model.compile(loss='mean_absolute_error', optimizer='rmsprop')
+
+    return model
+
 def aligner_vgg16(weights_file='weights/vgg16.h5', size=(270, 480), lr=0.001, dropout=0.4):
 
     model = Sequential()

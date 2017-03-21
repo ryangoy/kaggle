@@ -104,8 +104,8 @@ class MultiboxLoss(object):
                              num_boxes - num_pos)
         pos_num_neg_mask = tf.greater(num_neg, 0)
         has_min = tf.to_float(tf.reduce_any(pos_num_neg_mask))
-        num_neg = tf.concat(axis=0, values=[num_neg,
-                                [(1 - has_min) * self.negatives_for_hard]])
+        num_neg = tf.concat([num_neg,
+                                [(1 - has_min) * self.negatives_for_hard]], 0)
         num_neg_batch = tf.reduce_min(tf.boolean_mask(num_neg,
                                                       tf.greater(num_neg, 0)))
         num_neg_batch = tf.to_int32(num_neg_batch)
