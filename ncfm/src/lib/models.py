@@ -101,7 +101,6 @@ def VGG16(weights_path, include_top=True, weights='imagenet',
     model.add(Dense(classes, activation='softmax', name='predictions'))
     #model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=["accuracy"])
     model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
-
     return model
 
 def vgg16(size=(270, 480), lr=0.01, dropout=0.4, nb_classes=8, weights_file='weights/vgg16.h5'):
@@ -337,7 +336,7 @@ def aligner_VGG16(weights_path, include_top=True, weights='imagenet',
     # load weights
     model.load_weights(weights_path)
 
-    for layer in model.layers:
+    for layer in model.layers[:-6]:
         layer.trainable = False
 
     model.layers.pop()
@@ -346,18 +345,19 @@ def aligner_VGG16(weights_path, include_top=True, weights='imagenet',
     dropout = .5
     model.outputs = [model.layers[-1].output]
     model.layers[-1].outbound_nodes = []
-    model.add(Dense(4096, activation='relu'))
+    model.add(Dense(1024, activation='relu'))
     model.add(BatchNormalization())
     model.add(Dropout(dropout))
-    model.add(Dense(4096, activation='relu', name='pred'))
+    model.add(Dense(1024, activation='relu', name='pred'))
     model.add(BatchNormalization())
     model.add(Dropout(dropout))
     #model.add(Dense(classes, activation='softmax', name='predictions'))
     #model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=["accuracy"])
     #model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
-
+    def mean_absolute_error(y_true, y_pred):
+        return K.mean(K.tensor.minimum(K.abs(y_pred - y_true), 360 - K.abs(y_pred - y_true)), axis=-1)
     model.add(Dense(1, activation='linear'))
-    model.compile(loss='mean_absolute_error', optimizer='rmsprop')
+    model.compile(loss='mean_absolute_error', optimizer='adam')
 
     return model
 
@@ -482,8 +482,8 @@ def predict(model, test_gen_fn=None, predfile='default.npy', nb_test_samples=100
 def get_train_all_gens(X=None, y=None, size=(270, 480), batch_size=16):
     trn_all_path = 'train_all/'
     
-    trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.05, zoom_range=0.05,
-                                      channel_shift_range=10, height_shift_range=0.05, shear_range=0.05,
+    trn_all_datagen = ImageDataGenerator(rotation_range=10, width_shift_range=0.1, zoom_range=0.1,
+                                      channel_shift_range=10, height_shift_range=0.1, shear_range=0.1,
                                       vertical_flip=True)
     if X is not None and y is not None:
         trn_all_gen = trn_all_datagen.flow(X, y, batch_size=batch_size,

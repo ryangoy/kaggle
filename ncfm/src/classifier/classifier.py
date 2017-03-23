@@ -40,7 +40,7 @@ np.random.seed(seed)
 vgg_size = (224, 224)
 fish_types = ['ALB','BET','DOL','LAG','OTHER','SHARK','YFT']
 nb_classes = len(fish_types)
-nb_epoch = 8
+nb_epoch = 20
 batch_size = 16
 
 
@@ -125,6 +125,8 @@ if not load_precomputed_train:
         if counter % 1000 == 0:
             print 'Finished processing {} images'.format(counter)
         counter += 1
+        plt.imshow(images[counter])
+        plt.show()
     images -= images.mean(axis=(1,2),keepdims=1)
     
     enc = OneHotEncoder(sparse=False)
@@ -138,10 +140,11 @@ else:
     one_hot = np.load(labels_path)
     print "Loaded precomputed data successfully."
 
+
 images *= 255
 images = images[:, :, :, ::-1]
 
-X_train, X_val, y_train, y_val = sklearn.model_selection.train_test_split(images, one_hot, test_size=.05)
+X_train, X_val, y_train, y_val = sklearn.model_selection.train_test_split(images, one_hot, test_size=.1)
 
 trn_gen, val_gen = models.get_train_val_gens(X_train, X_val, y_train, y_val, 
                                              size=vgg_size, batch_size = batch_size)
@@ -155,6 +158,3 @@ models.train_val(model, trn_gen, val_gen,
 
 model.save(model_save_path)
 
-# images -= images.mean(axis=(1,2),keepdims=1)
-# images *= 255
-# images = images[:, :, :, ::-1]
