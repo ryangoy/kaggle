@@ -4,9 +4,11 @@ import sklearn
 import os
 import time
 import sys
+import pandas as pd
 import pickle
 from operator import itemgetter
 from os.path import join
+import xgboost as xgb
 from keras.callbacks import ModelCheckpoint
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dense, Dropout, Flatten
@@ -34,6 +36,7 @@ batch_size = 16
 seed = 0
 np.random.seed(seed)
 val_size = .2
+stacked_val_size = .1
 
 VGG_weights = '/home/ryan/cs/datasets/ncfm/weights/vgg16_full.h5'
 weights_path = '/home/ryan/cs/datasets/ncfm/stacked/output_weights'
@@ -45,19 +48,38 @@ e2e_preloaded_labels = '/home/ryan/cs/datasets/ncfm/stacked/one_hot_labels_e2e.n
 loc_preloaded_labels = '/home/ryan/cs/datasets/ncfm/stacked/one_hot_labels_loc.npy'
 bboxes_path = '/home/ryan/cs/datasets/ncfm/stacked/predictions_no_fish.pkl'
 
+# change these to None if you want to train
+best_e2e_weights = join(weights_path, 'e2e_weights.05-0.43.hdf5')
+best_loc_weights = join(weights_path, 'loc_weights.11-0.30.hdf5')
+# best_e2e_weights = None
+# best_loc_weights = None
 
 X_trn = None
 X_val = None
 y_trn = None
 y_val = None
+X_sval= None
+y_sval= None
 trn_gen = None
 val_gen = None
 
 def run():
-    #e2e_load_data(images_path)
-    #e2e_run()
+
+    e2e_load_data(images_path)
+    e2e_pred = e2e_run(name="e2e", weights = best_e2e_weights)
     loc_load_data(cropped_images_path)
-    e2e_run(name="loc")
+    loc_pred = e2e_run(name="loc", weights = best_loc_weights)
+
+
+    if best_e2e_weights is None or best_loc_weights is None:
+        return
+    df1 = pd.DataFrame(e2e_pred)
+    df2 = pd.DataFrame(loc_pred)
+    df2.columns = [str(col) + '_loc' for col in df2.columns]
+    
+    stacked_input = pd.concat([df1, df2], axis=1)
+
+    train_stacked(stacked_input, y_val)
 
 
 def e2e_load_data(images_path):
@@ -101,17 +123,22 @@ def e2e_load_data(images_path):
     permute = np.random.permutation(X.shape[0])
     X_shuf = X[permute]
     y_shuf = y[permute]
-    split_index = int(X.shape[0]*(1-val_size))
+    split_index = int(X.shape[0]*(1-val_size-stacked_val_size))
+    second_split = int(X.shape[0]*(1-stacked_val_size))
     global X_trn
     global X_val
     global y_trn
     global y_val
+    global X_sval
+    global y_sval
     global trn_gen
     global val_gen
     X_trn = X[:split_index]
-    X_val = X[split_index:]
+    X_val = X[split_index:second_split]
     y_trn = y[:split_index]
-    y_val = y[split_index:]
+    y_val = y[split_index:second_split]
+    X_sval = X[second_split:]
+    y_sval = y[second_split:]
     trn_gen, val_gen = models.get_train_val_gens(X_trn=X_trn, X_val=X_val, y_trn=y_trn, y_val=y_val, 
                                                     size=vgg_size, batch_size=batch_size)
 
@@ -173,13 +200,14 @@ def loc_load_data(images_path):
 
 def e2e_run(name, nb_epoch=nb_epoch_e2e, batch_size=batch_size, weights=None):
     print '[STARTING END TO END RUN]'
-    print X_trn.shape
-    print X_val.shape
     if weights is not None:
         print "[LOADING END TO END MODEL]"
-        model = load_model(weights)
+        model = models.VGG16_test(weights)
+        print X_val.shape 
         pred = model.predict_generator(val_gen, val_samples=X_val.shape[0])
+        print pred.shape
         print_confusion_matrix(y_val, pred)
+        return pred
         
     else:
         print "[TRAINING END TO END MODEL]"
@@ -205,7 +233,7 @@ def print_confusion_matrix(label, pred):
     print conf
     print float(np.trace(conf))/float(np.sum(conf))
 
-def train_stacked():
+def train_stacked(train, labels):
     param = {}
     param['objective'] = 'multi:softprob'
     param['eta'] = 0.1
@@ -219,13 +247,17 @@ def train_stacked():
     param['seed'] = 0
     num_rounds = 1000
     plst = list(param.items())
-    xg_trn = xgb.DMatrix(X_val, label=np.argmax(y_val, axis=1))
-    xg_val = xgb.DMatrix(X_val, label=np.argmax(y_val, axis=1))
+    xg_trn = xgb.DMatrix(train, label=np.argmax(labels, axis=1))
+    xg_val = xgb.DMatrix(train, label=np.argmax(labels, axis=1))
 
 
     watchlist = [ (xg_trn,'train'), (xg_val, 'val') ]
     model = xgb.train(plst, xg_trn, num_rounds, watchlist, early_stopping_rounds=20)
 
-    pred = model.predict(xg_val)
+
+    #pred = model.predict(xg_val)
+
+
+
 if __name__ == "__main__":
     run()
