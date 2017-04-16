@@ -49,10 +49,10 @@ loc_preloaded_labels = '/home/ryan/cs/datasets/ncfm/stacked/one_hot_labels_loc.n
 bboxes_path = '/home/ryan/cs/datasets/ncfm/stacked/predictions_no_fish.pkl'
 
 # change these to None if you want to train
-best_e2e_weights = join(weights_path, 'e2e_weights.05-0.43.hdf5')
-best_loc_weights = join(weights_path, 'loc_weights.11-0.30.hdf5')
-# best_e2e_weights = None
-# best_loc_weights = None
+# best_e2e_weights = join(weights_path, 'e2e_weights.05-0.43.hdf5')
+# best_loc_weights = join(weights_path, 'loc_weights.11-0.30.hdf5')
+best_e2e_weights = None
+best_loc_weights = None
 
 X_trn = None
 X_val = None
@@ -203,9 +203,7 @@ def e2e_run(name, nb_epoch=nb_epoch_e2e, batch_size=batch_size, weights=None):
     if weights is not None:
         print "[LOADING END TO END MODEL]"
         model = models.VGG16_test(weights)
-        print X_val.shape 
         pred = model.predict_generator(val_gen, val_samples=X_val.shape[0])
-        print pred.shape
         print_confusion_matrix(y_val, pred)
         return pred
         
