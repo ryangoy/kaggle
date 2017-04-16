@@ -548,7 +548,7 @@ def predict(model, test_gen_fn=None, predfile='default.npy', nb_test_samples=100
         print '{} runs in {} sec'.format(run+1, time.time() - start_time)
     
     predictions_full /= nb_runs
-    np.save("pred/{}".format(predfile), predictions_full)
+    np.save(predfile, predictions_full)
 
 def get_train_all_gens(X=None, y=None, size=(270, 480), batch_size=16):
     trn_all_path = 'train_all/'

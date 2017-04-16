@@ -33,10 +33,7 @@ weights_path = join(dataset_dir, 'weights/vgg16_full.h5')
 images_path = join(dataset_dir, 'classifier_images.npy')
 labels_path = join(dataset_dir, 'classifier_labels.npy')
 model_save_path = join(dataset_dir, 'classifier_weights.h5')
-X_val_save_path = join(dataset_dir, 'classifier_X_val.npy')
-y_val_save_path = join(dataset_dir, 'classifier_y_val')
-X_val_sequence = join(dataset_dir, 'classifier_val_seq.npy')
-load_precomputed_train = False
+load_precomputed_train = True
 
 seed = 0
 np.random.seed(seed)
@@ -106,9 +103,7 @@ def get_cropped_fish(img,x1,y1,x2,y2):
     
     return resized
 
-image_sequence = []
 if not load_precomputed_train:
-
     labels = None
     for i in range(len(label_files)):
         f_labels = pd.read_json(label_files[i])
@@ -126,14 +121,12 @@ if not load_precomputed_train:
     images = np.zeros((len(labels), vgg_size[0], vgg_size[1], 3))
     counter = 0
     for _, row in labels.iterrows():
-        image_sequence.append(row['filename'])
         images[counter] = get_img(row)
         if counter % 1000 == 0:
             print 'Finished processing {} images'.format(counter)
         counter += 1
-
-        # plt.imshow(images[counter])
-        # plt.show()
+        plt.imshow(images[counter])
+        plt.show()
     images -= images.mean(axis=(1,2),keepdims=1)
     
     enc = OneHotEncoder(sparse=False)
@@ -147,24 +140,14 @@ else:
     one_hot = np.load(labels_path)
     print "Loaded precomputed data successfully."
 
-image_sequence = np.array(image_sequence)
-indices = range(len(image_sequence))
 
 images *= 255
 images = images[:, :, :, ::-1]
 
-print image_sequence.shape
-print one_hot.shape
-X_train_seq, X_val_seq, y_train, y_val = sklearn.model_selection.train_test_split(indices, one_hot, test_size=.15)
-
-X_train = images[X_train_seq]
-X_val = images[X_val_seq]
+X_train, X_val, y_train, y_val = sklearn.model_selection.train_test_split(images, one_hot, test_size=.1)
 
 trn_gen, val_gen = models.get_train_val_gens(X_train, X_val, y_train, y_val, 
                                              size=vgg_size, batch_size = batch_size)
-
-
-np.save(y_val_save_path, y_val)
 
 model = models.VGG16(weights_path, input_shape=vgg_size+ (3,), classes=nb_classes,)
 
@@ -173,8 +156,5 @@ models.train_val(model, trn_gen, val_gen,
           nb_val_samples=X_val.shape[0],
           nb_epoch=nb_epoch)
 
-preds = model.predict(X_val)
-np.save(X_val_save_path, preds)
-np.save(X_val_sequence, image_sequence[X_val_seq])
 model.save(model_save_path)
 
