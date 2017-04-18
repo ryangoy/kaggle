@@ -30,7 +30,7 @@ val_gen = datagen.flow_from_directory(join(paths.IMAGES,'val'),
 model.fit_generator(trn_gen, samples_per_epoch = 221317 / 32, 
                     validation_data = val_gen,
                     nb_val_samples = 54914 / 32,
-                    nb_epoch = 10, verbose=1, show_accuracy=True, 
+                    nb_epoch = 10, verbose=1,
                     callbacks=[], nb_worker=1)
 
 
