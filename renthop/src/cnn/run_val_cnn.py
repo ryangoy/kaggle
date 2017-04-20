@@ -19,10 +19,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 def test(save_id_path = paths.CNN_PRED_IDS, save_path = paths.CNN_PREDICTIONS):
     datagen = ImageDataGenerator()
     model = load_model(paths.VGG16_RENTHOP_WEIGHTS)
-    test_gen = datagen.flow_from_directory(paths.IMGS_CATEGORIZED, 
-                                        classes=['test'],
+    test_gen = datagen.flow_from_directory(paths.VAL_IMAGES, 
+                                        classes=['low', 'medium','high'],
                                         seed =0, target_size=(224, 224),
                                         shuffle=False, batch_size=32)
-    preds = model.predict_generator(test_gen, 418591/32 + 1)
+    preds = model.predict_generator(test_gen, 1721)
     np.save(save_id_path, test_gen.filenames)
     np.save(save_path, preds)

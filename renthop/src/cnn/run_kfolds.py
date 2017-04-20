@@ -15,7 +15,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from sklearn import model_selection
 import matplotlib.pyplot as plt
 import train_cnn
-import test_cnn
+import run_val_cnn
 
 df = pd.read_json(paths.TRAIN_JSON)
 listing_id_interest = df[['listing_id', 'interest_level']]
@@ -28,7 +28,7 @@ kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2016)
 categories = ['low', 'medium', 'high']
 count = 0
 for dev_index, val_index in kf.split(range(len(listing_id_interest))):
-    if count <3:
+    if count !=3:
         count += 1
         continue
     print "Beginning split {}".format(count)
@@ -52,7 +52,7 @@ for dev_index, val_index in kf.split(range(len(listing_id_interest))):
     print "Organized dataset successfully. Now training..."
     train_cnn.train(save_path = join(paths.CNN_OUTPUT_DIR, 
                                      "kfold_{}.h5".format(count)))
-    test_cnn.test(save_id_path=join(paths.CNN_OUTPUT_DIR,
+    run_val_cnn.test(save_id_path=join(paths.CNN_OUTPUT_DIR,
                                      "kfold_{}_ids.npy".format(count)),
                    save_path = join(paths.CNN_OUTPUT_DIR,
                                      "kfold_{}_preds.npy".format(count)))
