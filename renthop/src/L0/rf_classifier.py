@@ -7,41 +7,44 @@ import random
 from scipy import sparse
 import sklearn
 from sklearn import model_selection, preprocessing, ensemble
-from sklearn.metrics import log_loss, accuracy_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics import log_loss, accuracy_score, confusion_matrix
 import time
-import xgboost as xgb
 
 random.seed(0)
 np.random.seed(0)
 
-# runs xgboost for validation and test runs
-def runXGB(X_trn, y_trn, X_test, y_test=None, feature_names=None, seed_val=0, num_rounds=2000):
-    param = {}
-    param['objective'] = 'multi:softprob'
-    param['eta'] = 0.03
-    param['max_depth'] = 6
-    param['silent'] = 1
-    param['num_class'] = 3
-    param['eval_metric'] = 'mlogloss'
-    param['min_child_weight'] = 1
-    param['subsample'] = 0.7
-    param['colsample_bytree'] = 0.7
-    param['seed'] = seed_val
-    num_rounds = num_rounds
+# runs sklearn random forest for validation and test runs
+def runRF(X_trn, y_trn, X_test, y_test=None, feature_names=None, seed_val=0, n_estimators=100):
+    model = RandomForestClassifier(n_estimators=n_estimators, criterion='entropy', max_depth=15, 
+                                   min_samples_split=10, min_samples_leaf=1, 
+                                   min_weight_fraction_leaf=0.0, max_features='auto', 
+                                   max_leaf_nodes=None, min_impurity_split=1e-07, 
+                                   bootstrap=True, n_jobs=3, random_state=seed_val, verbose=1)
 
-    plst = list(param.items())
-    xgtrain = xgb.DMatrix(X_trn, label=y_trn)
+    # model = ExtraTreesClassifier(n_estimators=100, criterion='gini', max_depth=10, min_samples_split=5, 
+    #                              min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features='auto', 
+    #                              max_leaf_nodes=None, min_impurity_split=1e-07, bootstrap=False, 
+    #                              n_jobs=3, random_state=seed_val, verbose=1)
 
-    if y_test is not None:
-        xgtest = xgb.DMatrix(X_test, label=y_test)
-        watchlist = [ (xgtrain,'train'), (xgtest, 'test') ]
-        model = xgb.train(plst, xgtrain, num_rounds, watchlist, early_stopping_rounds=20)
-    else:
-        xgtest = xgb.DMatrix(X_test)
-        model = xgb.train(plst, xgtrain, num_rounds)
+    # dt = DecisionTreeClassifier(criterion='entropy', splitter='best', max_depth=None, min_samples_split=5, 
+    #                             min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features=None, 
+    #                             random_state=seed_val, max_leaf_nodes=None, min_impurity_split=1e-07)
+    # model = AdaBoostClassifier(base_estimator=dt, n_estimators=n_estimators, learning_rate=1.0, 
+    #                            algorithm='SAMME.R', random_state=seed_val)
 
-    pred_test_y = model.predict(xgtest)
+    # model = LogisticRegression()
+
+    # model = MLPClassifier()
+
+
+    model.fit(X_trn, y_trn)
+
+    pred_test_y = model.predict_proba(X_test)
     return pred_test_y, model
 
 # one hots categorical features in 'features_to_use'
@@ -462,9 +465,9 @@ def run_validation(trn_df, val_df, features_to_use):
 
     print '[TIME] to create train/validation matrices:', time.time() - start_time
 
-    preds, model = runXGB(X_trn, y_trn, X_val, y_val)
+    preds, model = runRF(X_trn, y_trn, X_val, y_val)
 
-    print '[TIME] to run xgboost:', time.time() - start_time
+    print '[TIME] to run sklearn random forest:', time.time() - start_time
 
     fold_log_loss = log_loss(y_val, preds)
     fold_accuracy = accuracy_score(y_val, np.argmax(preds, axis=1))
@@ -511,7 +514,7 @@ def run_test(trn_df, test_df, features_to_use):
 
     print '[TIME] to create train/validation matrices:', time.time() - start_time
 
-    preds, model = runXGB(X_trn, y_trn, X_test, num_rounds=1000)
+    preds, model = runRF(X_trn, y_trn, X_test, n_estimators=100)
 
     print '[TIME] to run xgboost:', time.time() - start_time
 
@@ -571,10 +574,10 @@ if __name__ == '__main__':
                         'created_day',
                         'created_hour',
                         'density',
-                        'average_image_size',
+                        # 'average_image_size',
                         # 'average_image_width',
                         # 'average_image_height',
-                        'average_image_diagonal',
+                        # 'average_image_diagonal',
                         # 'image_predictions_low', 'image_predictions_medium', 'image_predictions_high', 
                         # cv stats or whatever that means
                         'manager_level_percent_low', 'manager_level_percent_medium', 'manager_level_percent_high',
@@ -582,9 +585,6 @@ if __name__ == '__main__':
                         'manager_listings_count',
                         'manager_skill',
                       ]
-
-    # trn_stacker=[ [0.0 for s in range(3)]  for k in range (0,(trn_all_df.shape[0])) ]
-    # test_stacker=[[0.0 for s in range(3)]   for k in range (0,(test_df.shape[0]))]
 
     cv_scores = []
     kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2017)
@@ -596,12 +596,7 @@ if __name__ == '__main__':
         val_df.is_copy = False
         fold_log_loss, fold_accuracy, preds = run_validation(trn_df, val_df, features_to_use)
         cv_scores += [[fold_log_loss, fold_accuracy]]
-        # no=0
-        # for real_index in val_index:
-        #     for d in range (0,3):
-        #         trn_stacker[real_index][d]=(preds[no][d])
-        #     no+=1
-        # break
+
     if len(cv_scores) > 1:
         for i in range(len(cv_scores)):
             print 'Fold {}:'.format(i+1) 
@@ -612,50 +607,3 @@ if __name__ == '__main__':
     X_trn, X_test, y_trn, preds, out_df = run_test(trn_all_df, test_df, features_to_use)
     mean_log_loss = sum([c[0] for c in cv_scores])/len(cv_scores)
     out_df.to_csv('predictions/L0_xgb_{}.csv'.format(mean_log_loss), index=False)
-
-
-    # for pr in range (0,len(preds)):  
-    #     for d in range (0,3):            
-    #         test_stacker[pr][d]=(preds[pr][d]) 
-
-    # trn_file ="train_stacknet.csv"
-    # test_file ="test_stacknet.csv"
-
-    # ids = test_df.listing_id.values
-
-    # print ("merging columns")   
-    # #stack xgboost predictions
-    # X_trn=np.column_stack((X_trn.toarray(),trn_stacker))
-    # # stack id to test
-    # X_test=np.column_stack((X_test.toarray(),test_stacker))        
-    
-    # # stack target to train
-    # X_trn=np.column_stack((y_trn,X_trn))
-    # # stack id to test
-    # X_test=np.column_stack((ids,X_test))
-    
-    # #export to txt files (, del.)
-    # print ("exporting files")
-    # np.savetxt(trn_file, X_trn, delimiter=",", fmt='%.5f')
-    # np.savetxt(test_file, X_test, delimiter=",", fmt='%.5f')        
-
-    # mean_log_loss = 
-
-    # print("Write results...")
-    # output_file = "submission_"+str(mean_log_loss)+".csv"
-    # print("Writing submission to %s" % output_file)
-    # f = open(output_file, "w")   
-    # f.write("listing_id,high,medium,low\n")# the header   
-    # for g in range(0, len(test_stacker))  :
-    #   f.write("%s" % (ids[g]))
-    #   for prediction in test_stacker[g]:
-    #      f.write(",%f" % (prediction))    
-    #   f.write("\n")
-    # f.close()
-    # print("Done.")
-
-
-
-# TO TRY:
-#     add average image size
-#     add ryans features from images
