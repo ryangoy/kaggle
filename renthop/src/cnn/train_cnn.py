@@ -13,6 +13,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from sklearn import model_selection
 import matplotlib.pyplot as plt
 from PIL import ImageFile
+import shutil
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def train(save_path = paths.VGG16_RENTHOP_WEIGHTS, use_val=True):
@@ -37,9 +38,21 @@ def train(save_path = paths.VGG16_RENTHOP_WEIGHTS, use_val=True):
                             nb_epoch = 6, verbose=1,
                             callbacks=[], nb_worker=1)
     else:
-        model.fit_generator(trn_gen, samples_per_epoch = 221477 / 32, 
+        model.fit_generator(trn_gen, samples_per_epoch = 276431 / 32 + 1, 
                             nb_epoch = 6, verbose=1,
                             callbacks=[], nb_worker=1)
 
 
     model.save(save_path)
+
+def train_on_entire_data():
+    # move everything into train
+    categories = ['low','medium','high']
+    for folder in categories:
+        for img in listdir(join(paths.VAL_IMAGES, folder)):
+            shutil.move(join(paths.VAL_IMAGES,folder,img), 
+                        join(paths.TRN_IMAGES,folder,img))
+    train(use_val=False)
+
+if __name__ == '__main__':
+    train_on_entire_data()

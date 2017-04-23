@@ -28,9 +28,9 @@ kf = model_selection.KFold(n_splits=5, shuffle=True, random_state=2016)
 categories = ['low', 'medium', 'high']
 count = 0
 for dev_index, val_index in kf.split(range(len(listing_id_interest))):
-    if count !=3:
-        count += 1
-        continue
+    # if count !=3:
+    #     count += 1
+    #     continue
     print "Beginning split {}".format(count)
     trn_indices = dev_index
     val_indices = val_index
