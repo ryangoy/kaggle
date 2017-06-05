@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 import time
 import xgboost as xgb
 
+
 # one hots categorical features in 'features_to_use'
 def vectorize_categorical_features(trn_df, test_df, features_to_use):
     categorical = ['display_address', 'manager_id', 'building_id', 'street_address']

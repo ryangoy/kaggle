@@ -9,16 +9,22 @@ import sklearn
 from sklearn import model_selection, preprocessing, ensemble
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier, ElasticNet
 from sklearn.neural_network import MLPClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics import log_loss, accuracy_score, confusion_matrix
 import time
+# import keras
+# from keras.models import Sequential
+# from keras.layers import Dense, Dropout, Flatten
+# from keras.layers import Conv2D, MaxPooling2D
+# from keras import backend as K
 
 from feature_extraction import vectorize_categorical_features, feature_engineering, cv_stats2
 
 random.seed(0)
 np.random.seed(0)
+DROPOUT = .5
 
 # runs sklearn random forest for validation and test runs
 def runRF(X_trn, y_trn, X_test, y_test=None, feature_names=None, seed_val=0, n_estimators=100):
@@ -40,14 +46,48 @@ def runRF(X_trn, y_trn, X_test, y_test=None, feature_names=None, seed_val=0, n_e
     #                            algorithm='SAMME.R', random_state=seed_val)
 
     # model = LogisticRegression()
+    
 
     # model = MLPClassifier()
 
+    model = ElasticNet()
+
+    # X_trn = X_trn.todense()[:,:4]
+    # X_test = X_test.todense()[:,:4]
+    # X_trn /= X_trn.max(axis=0)
+    # X_test /= X_test.max(axis=0)
+
+    # print X_trn[:5]
+
+    # model = Sequential()
+    # model.add(Dense(256, activation='sigmoid', input_shape=(X_trn.shape[1],)))
+    # #model.add(Dropout(DROPOUT))
+    # model.add(Dense(256, activation='sigmoid'))
+    # #odel.add(Dropout(DROPOUT))
+    # model.add(Dense(3, activation='softmax'))
+    # model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.SGD(lr=0.0001),
+    #  metrics=["accuracy"])
+
+    # oh_train= np.zeros((y_trn.shape[0], 3))
+    # oh_train[np.arange(y_trn.shape[0]), y_trn] = 1
 
     model.fit(X_trn, y_trn)
+    #print model.score(X_test, y_test)
+    pred_test_y = model.predict(X_test)
+    # print X_trn[:10]
 
-    pred_test_y = model.predict_proba(X_test)
-    return pred_test_y, model
+    # if y_test is None:
+    #     model.fit(X_trn, oh_train)
+    # else:
+    #     oh_test= np.zeros((y_test.shape[0], 3))
+    #     oh_test[np.arange(y_test.shape[0]), y_test] = 1
+    #     model.fit(X_trn, oh_train, batch_size=32, validation_data=(X_test, oh_test))
+    # pred_test_y = model.predict(X_test)
+
+    oh_preds = np.zeros((pred_test_y.shape[0],3))
+    oh_preds[:,0] = pred_test_y
+
+    return oh_preds, model
 
 def run_validation(trn_df, val_df, features_to_use):
     start_time = time.time()
@@ -59,7 +99,7 @@ def run_validation(trn_df, val_df, features_to_use):
     vectorize_categorical_features(trn_df, val_df, features_to_use)
     print '[TIME] to vectorize categorical features:', time.time() - start_time
 
-    trn_df, val_df = feature_engineering(trn_df, val_df, features_to_use)
+    #trn_df, val_df = feature_engineering(trn_df, val_df, features_to_use)
     print '[TIME] to engineer features:', time.time() - start_time
 
     # cv_stats(trn_df, val_df, features_to_use)
@@ -92,7 +132,9 @@ def run_validation(trn_df, val_df, features_to_use):
     print '[TIME] to run rf:', time.time() - start_time
 
     fold_log_loss = log_loss(y_val, preds)
+    print preds[:10]
     fold_accuracy = accuracy_score(y_val, np.argmax(preds, axis=1))
+
 
     conf_mat = confusion_matrix(y_val, np.argmax(preds, axis=1))
     print 'confusion matrix:\n', conf_mat
@@ -116,7 +158,7 @@ def run_test(trn_df, test_df, features_to_use):
     vectorize_categorical_features(trn_df, test_df, features_to_use)
     print '[TIME] to vectorize categorical features:', time.time() - start_time
 
-    trn_df, test_df = feature_engineering(trn_df, test_df, features_to_use)
+    #trn_df, test_df = feature_engineering(trn_df, test_df, features_to_use)
     print '[TIME] to engineer features:', time.time() - start_time
 
     cv_stats2(trn_df, test_df, features_to_use)
@@ -181,46 +223,46 @@ if __name__ == '__main__':
                         'longitude', 
                         'price',
                         'listing_id', 
-                        # categorical
-                        'display_address', 
-                        'manager_id', 
-                        'building_id', 
-                        'street_address',
-                        # engineered
-                        'rooms', 
-                        'half_bathrooms',
-                        'price_t', 
-                        'price_s', 
-                        'price_r', 
-                        'log_price', 
-                        'num_photos', 
-                        'num_features', 
-                        'num_description_words',
-                        # 'created_year_percent', 
-                        # 'created_percent', 
-                        # 'created_month',
-                        # 'created_day',
-                        'created_hour',
-                        'density',
-                        # 'average_image_size',
-                        # 'average_image_width',
-                        # 'average_image_height',
-                        # 'average_image_diagonal',
-                        # 'image_predictions_low', 'image_predictions_medium', 'image_predictions_high', 
-                        'image_time_stamp',
-                        # 'img_days_passed',
-                        # 'img_date_month',
-                        # 'img_date_week',
-                        # 'img_date_day',
-                        # 'img_date_dayofweek',
-                        # 'img_date_dayofyear',
-                        # 'img_date_hour',
-                        # 'img_date_monthBeginMidEnd',
-                        # cv stats or whatever that means
-                        'manager_level_percent_low', 'manager_level_percent_medium', 'manager_level_percent_high',
-                        # 'manager_level_count_low', 'manager_level_count_medium', 'manager_level_count_high',
-                        # 'manager_listings_count',
-                        # 'manager_skill',
+                        # # categorical
+                        # 'display_address', 
+                        # 'manager_id', 
+                        # 'building_id', 
+                        # 'street_address',
+                        # # engineered
+                        # 'rooms', 
+                        # 'half_bathrooms',
+                        # 'price_t', 
+                        # 'price_s', 
+                        # 'price_r', 
+                        # 'log_price', 
+                        # 'num_photos', 
+                        # 'num_features', 
+                        # 'num_description_words',
+                        # # 'created_year_percent', 
+                        # # 'created_percent', 
+                        # # 'created_month',
+                        # # 'created_day',
+                        # 'created_hour',
+                        # 'density',
+                        # # 'average_image_size',
+                        # # 'average_image_width',
+                        # # 'average_image_height',
+                        # # 'average_image_diagonal',
+                        # # 'image_predictions_low', 'image_predictions_medium', 'image_predictions_high', 
+                        # 'image_time_stamp',
+                        # # 'img_days_passed',
+                        # # 'img_date_month',
+                        # # 'img_date_week',
+                        # # 'img_date_day',
+                        # # 'img_date_dayofweek',
+                        # # 'img_date_dayofyear',
+                        # # 'img_date_hour',
+                        # # 'img_date_monthBeginMidEnd',
+                        # # cv stats or whatever that means
+                         'manager_level_percent_low', 'manager_level_percent_medium', 'manager_level_percent_high',
+                        # # 'manager_level_count_low', 'manager_level_count_medium', 'manager_level_count_high',
+                        # # 'manager_listings_count',
+                        # # 'manager_skill',
                       ]
 
     # trn_stacker=[ [0.0 for s in range(3)]  for k in range (0,(trn_all_df.shape[0])) ]
@@ -238,7 +280,7 @@ if __name__ == '__main__':
         fold_log_loss, fold_accuracy, preds, out_df = run_validation(trn_df, val_df, features_to_use)
         cv_scores += [[fold_log_loss, fold_accuracy]]
 
-        out_df.to_csv('predictions/L0_rf_fold{}_{}.csv'.format(len(cv_scores), fold_log_loss), index=False)
+        out_df.to_csv('predictions/L0_lin_fold{}_{}.csv'.format(len(cv_scores), fold_log_loss), index=False)
         # break
         # no=0
         # for real_index in val_index:
@@ -246,7 +288,6 @@ if __name__ == '__main__':
         #         trn_stacker[real_index][d]=(preds[no][d])
         #     no+=1
         # break
-    exit(1)
     if len(cv_scores) > 1:
         for i in range(len(cv_scores)):
             print 'Fold {}:'.format(i+1) 
@@ -256,4 +297,4 @@ if __name__ == '__main__':
 
     X_trn, X_test, y_trn, preds, out_df = run_test(trn_all_df, test_df, features_to_use)
     mean_log_loss = sum([c[0] for c in cv_scores])/len(cv_scores)
-    out_df.to_csv('predictions/L0_rf_magic_{}.csv'.format(mean_log_loss), index=False)
+    out_df.to_csv('predictions/L0_lin_magic_{}.csv'.format(mean_log_loss), index=False)

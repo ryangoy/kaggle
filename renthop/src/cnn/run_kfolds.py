@@ -20,7 +20,6 @@ import run_val_cnn
 df = pd.read_json(paths.TRAIN_JSON)
 listing_id_interest = df[['listing_id', 'interest_level']]
 
-# only use one k fold since we're using a cnn
 trn_indices = []
 val_indices = []
 

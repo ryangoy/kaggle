@@ -16,13 +16,18 @@ import matplotlib.pyplot as plt
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-def test(save_id_path = paths.CNN_PRED_IDS, save_path = paths.CNN_PREDICTIONS):
+def test(save_id_path, save_path):
     datagen = ImageDataGenerator()
     model = load_model(paths.VGG16_RENTHOP_WEIGHTS)
     test_gen = datagen.flow_from_directory(paths.VAL_IMAGES, 
                                         classes=['low', 'medium','high'],
                                         seed =0, target_size=(224, 224),
                                         shuffle=False, batch_size=32)
-    preds = model.predict_generator(test_gen, 1721)
-    np.save(save_id_path, test_gen.filenames)
-    np.save(save_path, preds)
+    
+
+    #preds = model.predict_generator(test_gen, 1721)
+
+    print model.evaluate_generator(test_gen, 1721)
+
+    #np.save(save_id_path, test_gen.filenames)
+    #np.save(save_path, preds)

@@ -1,15 +1,16 @@
 import numpy as np
 import pandas as pd
 import paths
+import sys
 import xgboost as xgb
 from os.path import join
 import os
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, ElasticNet
 from sklearn.metrics import log_loss
 
 save_path = paths.FINAL_PREDICTION
 
-NUM_ROUNDS = 40
+NUM_ROUNDS = 45
 
 xgb_paths = ['xgb/L0_xgb_fold1_0.517224062756.csv',
             'xgb/L0_xgb_fold2_0.515606417015.csv',
@@ -30,11 +31,19 @@ cnn_paths = ['cnn/kfold_0.csv',
              'cnn/kfold_3.csv',
              'cnn/kfold_4.csv',]
 
-# test_paths = ['rf/L0_rf_magic_0.5686074029.csv', 'xgb/L0_xgb_magic_0.515570307154.csv', 
-# 'cnn/cnn_test.csv', ]
+lin_paths = ['L0_lin_fold1_10.2607742113.csv',
+               'L0_lin_fold2_10.3450393952.csv',
+                'L0_lin_fold3_10.2038377471.csv',
+                'L0_lin_fold4_10.288596339.csv',
+                'L0_lin_fold5_10.1658406557.csv']
+
+test_paths = [ 'xgb/L0_xgb_magic_0.515570307154.csv', 'rf/L0_rf_magic_0.5686074029.csv', 
+'cnn/cnn_test.csv', 'L0_lin_magic_10.2528176697.csv']
 
 # order is very important cause i just load it in into the dataframe in this order
-test_paths = ['xgb/L0_xgb_magic_0.515570307154.csv','rf/L0_rf_magic_0.5686074029.csv', ]
+#test_paths = ['xgb/L0_xgb_magic_0.515570307154.csv','rf/L0_rf_magic_0.5686074029.csv', ]
+
+extra_features = ['listing_id', 'bedrooms', 'price']
 
 
 def load_data(feature_paths, test_paths):
@@ -57,29 +66,36 @@ def load_data(feature_paths, test_paths):
     # add labels corresponding to listing_id
     labeled_features = []
     for X_trn in features:
-        X_trn = X_trn.join(trn_json[['listing_id', 'y']].set_index('listing_id'), on='listing_id', how='left')
+        X_trn = X_trn.join(trn_json[extra_features + ['y']].set_index('listing_id'), on='listing_id', how='left')
         labeled_features.append(X_trn)
+
+    #     print log_loss(X_trn['y'], X_trn[['low_2', 'medium_2', 'high_2']]
+    #         .fillna(X_trn[['low_2', 'medium_2', 'high_2']].mean()), )
+    #     print X_trn[['low_2', 'medium_2', 'high_2']].head()
+    # sys.exit()
 
 
     # assemble test data
+    test_json = pd.read_json(paths.TEST_JSON)[extra_features]
     X_test = pd.read_csv(join(paths.PREDICTIONS_DIR, test_paths[0]))
     for i in range(1,len(test_paths)):
         temp = pd.read_csv(join(paths.PREDICTIONS_DIR, test_paths[i]))
         X_test = X_test.join(temp.set_index('listing_id'), on='listing_id', how='inner', rsuffix='_'+str(i), sort=False)
+    X_test = X_test.join(test_json.set_index('listing_id'), on='listing_id', how='inner', rsuffix='_'+str(i), sort=False)
     return labeled_features, X_test
 
 
 def run_xgb_stacker(features, X_test, num_rounds, seed_val=0):
     param = {}
     param['objective'] = 'multi:softprob'
-    param['eta'] = 0.4
+    param['eta'] = 0.3
     param['max_depth'] = 2
     param['silent'] = 1
     param['num_class'] = 3
     param['eval_metric'] = 'mlogloss'
     param['min_child_weight'] = 1
-    param['subsample'] = .7
-    param['colsample_bytree'] = 0.7
+    param['subsample'] = .9
+    param['colsample_bytree'] = 0.9
     param['seed'] = seed_val
     num_rounds = num_rounds
 
@@ -93,20 +109,18 @@ def run_xgb_stacker(features, X_test, num_rounds, seed_val=0):
             else:
                 dfs.append(features[i])
         fold_train = pd.concat(dfs)
-
-        #print fold_train.head()
-        xgtrain = xgb.DMatrix(fold_train.drop(['listing_id', 'y'],1), label=fold_train['y'])
+        xgtrain = xgb.DMatrix(fold_train.drop('y',1), label=fold_train['y'])
 
 
-        xgval = xgb.DMatrix(features[fold].drop(['listing_id', 'y'],1), label=features[fold]['y'])
+        xgval = xgb.DMatrix(features[fold].drop('y',1), label=features[fold]['y'])
         watchlist = [ (xgtrain,'train'), (xgval, 'val') ]
-        model = xgb.train(plst, xgtrain, num_rounds, watchlist, early_stopping_rounds=20)
+        model = xgb.train(plst, xgtrain, num_rounds, watchlist, early_stopping_rounds=10)
 
     fold_train = pd.concat(features)
-    xgtrain = xgb.DMatrix(fold_train.drop(['listing_id', 'y'],1), label=fold_train['y'])
+    xgtrain = xgb.DMatrix(fold_train.drop(['y'],1), label=fold_train['y'])
     watchlist = [ (xgtrain,'train')]
-    model = xgb.train(plst, xgtrain, num_rounds, watchlist, early_stopping_rounds=20)
-    xgtest = xgb.DMatrix(X_test.drop('listing_id', 1))
+    model = xgb.train(plst, xgtrain, num_rounds, watchlist, early_stopping_rounds=10)
+    xgtest = xgb.DMatrix(X_test)
     pred_test_y = model.predict(xgtest)
     return pred_test_y, model
 
@@ -126,7 +140,7 @@ def run_logistic_stacker(features, X_test, seed_val=0):
                 dfs.append(features[i])
         fold_train = pd.concat(dfs)
 
-        model = LogisticRegression(random_state=0, n_jobs=-1, verbose=0)
+        model = ElasticNet(random_state=0)
         model.fit(fold_train.drop(['listing_id', 'y'],1), fold_train['y'])
         fold_preds = model.predict_proba(features[fold].drop(['listing_id', 'y'],1))
         print "Loss for fold {} is {}.".format(fold+1, log_loss(features[fold]['y'], fold_preds))
@@ -140,9 +154,9 @@ def run_logistic_stacker(features, X_test, seed_val=0):
 
 
 if __name__ == '__main__':
-    features, X_test = load_data([xgb_paths, rf_paths], test_paths)
-    #preds, model = run_xgb_stacker(features, X_test, num_rounds=NUM_ROUNDS)
-    preds, model = run_logistic_stacker(features, X_test)
+    features, X_test = load_data([xgb_paths, rf_paths, cnn_paths, lin_paths], test_paths)
+    preds, model = run_xgb_stacker(features, X_test, num_rounds=NUM_ROUNDS)
+    #preds, model = run_logistic_stacker(features, X_test)
     preds = pd.DataFrame(preds).clip(lower=0.001)
     preds = preds.div(preds.sum(axis=1), axis=0)
     ret = pd.concat([X_test['listing_id'],pd.DataFrame(preds)],  axis=1)
