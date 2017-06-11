@@ -10,14 +10,14 @@ class KFold:
         self.X = X
         self.y = y
         kf = model_selection.KFold(n_splits=num_folds, random_state=SEED, shuffle=True)
-        self.trn_splits, self.test_splits = kf.split(X)
+        self.splits = list(kf.split(X))
 
     def run_kfolds_on_model(self, model):
         pred_indices = np.array([], dtype=int)
         all_preds = np.array([])
 
         # loop through folds
-        for trn_indices, test_indices in zip(self.trn_splits, self.test_splits):
+        for trn_indices, test_indices in self.splits:
             # set the train and test sets
             X_trn = self.X.iloc[trn_indices]
             y_trn = self.y.iloc[trn_indices]
@@ -29,7 +29,6 @@ class KFold:
             preds = model.test(X_test, y_test)
             all_preds = np.append(all_preds, preds)
             pred_indices = np.append(pred_indices, test_indices)
-            print test_indices[:10]
 
         # un-shuffle the predictions
         return all_preds[pred_indices]

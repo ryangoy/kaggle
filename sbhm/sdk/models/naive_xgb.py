@@ -5,7 +5,7 @@ from model import Model
 
 NUM_ROUND_SPLIT = .8
 EARLY_STOPPING_ROUNDS = 20
-VERBOSE_INTERVAL = 25
+VERBOSE_INTERVAL = False
 NUM_BOOST_ROUND = 1000
 
 class NaiveXGB(Model):
