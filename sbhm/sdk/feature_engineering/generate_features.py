@@ -1,20 +1,21 @@
 import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 
 def encode_categorical_features(train, test):
-    for c in x_train.columns:
-        if x_train[c].dtype == 'object':
+    for c in train.columns:
+        if train[c].dtype == 'object':
             lbl = preprocessing.LabelEncoder()
-            lbl.fit(list(x_train[c].values)) 
-            x_train[c] = lbl.transform(list(x_train[c].values))
-            #x_train.drop(c,axis=1,inplace=True)
+            lbl.fit(list(train[c].values)) 
+            train[c] = lbl.transform(list(train[c].values))
+            train.drop(c, axis=1, inplace=True)
             
-    for c in x_test.columns:
-        if x_test[c].dtype == 'object':
+    for c in test.columns:
+        if test[c].dtype == 'object':
             lbl = preprocessing.LabelEncoder()
-            lbl.fit(list(x_test[c].values)) 
-            x_test[c] = lbl.transform(list(x_test[c].values))
-            #x_test.drop(c,axis=1,inplace=True)  
+            lbl.fit(list(test[c].values)) 
+            test[c] = lbl.transform(list(test[c].values))
+            test.drop(c, axis=1, inplace=True)  
 
 def generate_time_features(train, test):   
     # Add month-year
@@ -41,6 +42,9 @@ def generate_time_features(train, test):
 
     test['month'] = test.timestamp.dt.month
     test['dow'] = test.timestamp.dt.dayofweek
+
+    train.drop('timestamp', axis=1, inplace=True)
+    test.drop('timestamp', axis=1, inplace=True)
 
 def generate_relative_square_footage(train, test):
     # relative floor of the apartment

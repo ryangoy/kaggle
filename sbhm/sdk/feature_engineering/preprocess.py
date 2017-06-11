@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
+from os.path import join
 
 DS_DIR = '/home/ryan/cs/datasets/srhm/'
 
 def import_clean():
     train, test, macro = import_files()
     clean_data(train, test)
+    return train, test, macro
 
 def import_files():
     train = pd.read_csv(join(DS_DIR, 'train.csv'), parse_dates=['timestamp'])
