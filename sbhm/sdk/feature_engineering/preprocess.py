@@ -3,6 +3,10 @@ import pandas as pd
 
 DS_DIR = '/home/ryan/cs/datasets/srhm/'
 
+def import_clean():
+    train, test, macro = import_files()
+    clean_data(train, test)
+
 def import_files():
     train = pd.read_csv(join(DS_DIR, 'train.csv'), parse_dates=['timestamp'])
     test = pd.read_csv(join(DS_DIR, 'test.csv'), parse_dates=['timestamp'])
@@ -82,3 +86,4 @@ def clean_data(train, test):
     train.loc[train.full_sq == 0, 'full_sq'] = 50
     train = train[train.price_doc/train.full_sq <= 600000]
     train = train[train.price_doc/train.full_sq >= 10000]
+    return train, test

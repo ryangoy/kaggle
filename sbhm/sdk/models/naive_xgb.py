@@ -25,6 +25,7 @@ class NaiveXGB(Model):
                 'eval_metric': 'rmse',
                 'silent': 0
             }
+        self.name = 'NaiveXGB'
 
     def __init__(self, xgb_params, log_data=True, name='NaiveXGB'):
         self.model = None
