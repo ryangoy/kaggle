@@ -37,6 +37,7 @@ import math
 
 LABEL_NAME = 'price_doc'
 NUM_FOLDS = 5
+SUBMISSION_PATH = 'sub.csv'
 
 def generate_data():
     train, test, macro = import_clean()
@@ -105,24 +106,23 @@ def run():
     # train & test for each model
     # this is a weird approach, but it's simpler since we don't have to keep track of models
     # for test time.
-    curr_train_df = train # assuming we don't need to keep track of intermediate outputs
-    curr_test_df = test
     for i in range(len(levels)):
         print 'Training and testing L{} models with {} folds...'.format(i, NUM_FOLDS)
-        curr_train_df, curr_test_df = train_and_test_level(levels[i], curr_train_df, curr_test_df)
+        out_train_df, out_test_df = train_and_test_level(levels[i], train, test)
+        train = pd.concat([train, out_train_df], axis=1)
+        test = pd.concat([test, out_test_df], axis=1)
         print 'Finished L{} training and testing in {:.2f} seconds.'.format(i, time.time()-t)
         t = time.time()
     
     # validation
-    y_val = curr_train_df['NaiveXGB']
+    y_val = train.iloc[:,-1] # assuming the last feature is now the last prediction
     validate(y_val, train[LABEL_NAME])
 
     # write submission file
     submission_df = pd.DataFrame()
     submission_df['id'] = test['id']
-    submission_df['price_doc'] = curr_test_df.iloc[:,0]
-    submission_df.to_csv('sub.csv', index=False)
-
+    submission_df[LABEL_NAME] = test.iloc[:,0]
+    submission_df.to_csv(SUBMISSION_PATH, index=False)
     print 'Total runtime: {:.2f} seconds'.format(time.time()-start_time)
 
 # boilerplate code
