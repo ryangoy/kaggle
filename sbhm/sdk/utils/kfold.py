@@ -6,32 +6,37 @@ SEED = 0
 
 class KFold:
 
-    def __init__(self, X, y, num_folds=5):
-        self.X = X
-        self.y = y
+    def __init__(self, X_trn, y_trn, X_test, num_folds=5):
+        self.X_trn = X_trn
+        self.y_trn = y_trn
+        self.X_test = X_test
         kf = model_selection.KFold(n_splits=num_folds, random_state=SEED, shuffle=True)
-        self.splits = list(kf.split(X))
+        self.splits = list(kf.split(X_trn))
 
     def run_kfolds_on_model(self, model):
         pred_indices = np.array([], dtype=int)
-        all_preds = np.array([])
+        all_val_preds = np.array([])
+        test_preds = pd.DataFrame()
 
         # loop through folds
-        for trn_indices, test_indices in self.splits:
+        index = 0
+        for trn_indices, val_indices in self.splits:
             # set the train and test sets
-            X_trn = self.X.iloc[trn_indices]
-            y_trn = self.y.iloc[trn_indices]
-            X_test = self.X.iloc[test_indices]
-            y_test = self.y.iloc[test_indices]
+            X_trn = self.X_trn.iloc[trn_indices]
+            y_trn = self.y_trn.iloc[trn_indices]
+            X_val = self.X_trn.iloc[val_indices]
+            y_val = self.y_trn.iloc[val_indices]
 
             # train the model for this fold
             model.train(X_trn, y_trn)
-            preds = model.test(X_test, y_test)
-            all_preds = np.append(all_preds, preds)
-            pred_indices = np.append(pred_indices, test_indices)
+            val_preds = model.test(X_val, y_val)
+            all_val_preds = np.append(all_val_preds, val_preds)
+            pred_indices = np.append(pred_indices, val_indices)
+            test_preds[str(index)] = model.test(self.X_test)
+            index += 1
 
         # un-shuffle the predictions
-        return all_preds[pred_indices]
+        return all_val_preds[pred_indices], test_preds.mean(axis=1) # maybe use median instead?
 
 
 
