@@ -12,7 +12,7 @@ class NaiveXGB(Model):
     """
     Basic XGB model.
     """
-    def __init__(self, xgb_params=None, log_data=True, name='NaiveXGB'):
+    def __init__(self, xgb_params=None, log_data=True, name='NaiveXGB', features=None):
         self.model = None
         self.num_boost_rounds = None
         self.log_data = True
@@ -29,6 +29,7 @@ class NaiveXGB(Model):
         else:
             self.xgb_params = xgb_params
         self.name = 'NaiveXGB'
+        self.features = features
 
     def find_num_boost_round(self, X_trn, y_trn):
         """
@@ -46,6 +47,8 @@ class NaiveXGB(Model):
         return val_model.best_iteration
 
     def train(self, X_trn, y_trn):
+        if self.features is not None:
+            X_trn = X_trn[self.features]
         if self.log_data:
             y_trn = np.log1p(y_trn)
         if self.num_boost_rounds is None:
@@ -55,6 +58,8 @@ class NaiveXGB(Model):
                                num_boost_round=self.num_boost_rounds)
 
     def test(self, X_test, y_test=None):
+        if self.features is not None:
+            X_test = X_test[self.features]
         d_test = xgb.DMatrix(X_test)
         preds = self.model.predict(d_test)
         if self.log_data:
