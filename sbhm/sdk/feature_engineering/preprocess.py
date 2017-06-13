@@ -1,19 +1,35 @@
 import numpy as np
 import pandas as pd
 from os.path import join
+import sys
 
 DS_DIR = '/home/ryan/cs/datasets/srhm/'
 
 def import_clean():
     train, test, macro = import_files()
-    clean_data(train, test)
+    # messed up the order here, moved clean_data to middle of import_files
+    # because clean_data was written before the error_fixes came out
     return train, test, macro
 
 def import_files():
     train = pd.read_csv(join(DS_DIR, 'train.csv'), parse_dates=['timestamp'])
     test = pd.read_csv(join(DS_DIR, 'test.csv'), parse_dates=['timestamp'])
     macro = pd.read_csv(join(DS_DIR, 'macro.csv'), parse_dates=['timestamp'])
+    error_fixes = pd.read_excel(join(DS_DIR, 'error_fixes.xlsx'))
+    error_fixes = error_fixes.drop_duplicates('id').set_index('id')
+
+    train, test = clean_data(train, test)
+
+    train.update(error_fixes)
+    test.update(error_fixes)
+
+    train_lat_lon = pd.read_csv(join(DS_DIR, 'train_lat_lon.csv'))
+    test_lat_lon = pd.read_csv(join(DS_DIR, 'test_lat_lon.csv'))
+    train = train.merge(train_lat_lon, on='id')
+    test = test.merge(test_lat_lon, on='id')
+
     return train, test, macro
+
 
 def clean_data(train, test):
     bad_index = train[train.life_sq > train.full_sq].index

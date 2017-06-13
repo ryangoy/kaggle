@@ -121,7 +121,7 @@ def run():
     # write submission file
     submission_df = pd.DataFrame()
     submission_df['id'] = test['id']
-    submission_df[LABEL_NAME] = test.iloc[:,0]
+    submission_df[LABEL_NAME] = test.iloc[:,-1]
     submission_df.to_csv(SUBMISSION_PATH, index=False)
     print 'Total runtime: {:.2f} seconds'.format(time.time()-start_time)
 

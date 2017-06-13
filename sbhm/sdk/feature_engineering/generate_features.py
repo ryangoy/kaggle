@@ -59,3 +59,7 @@ def generate_room_information(train, test):
     # average room size
     train['room_size'] = train['life_sq'] / train['num_room'].astype(float)
     test['room_size'] = test['life_sq'] / test['num_room'].astype(float)
+
+def generate_properties_per_loc(train, test):
+    train['latlon_sum'] = train.groupby(['key']).transform(len)
+    test['latlon_sum'] = test.groupby(['key']).transform(len)
