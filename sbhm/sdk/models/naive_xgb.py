@@ -28,7 +28,7 @@ class NaiveXGB(Model):
                 }
         else:
             self.xgb_params = xgb_params
-        self.name = 'NaiveXGB'
+        self.name = name
         self.features = features
 
     def find_num_boost_round(self, X_trn, y_trn):

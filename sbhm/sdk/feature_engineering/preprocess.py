@@ -5,16 +5,21 @@ import sys
 
 DS_DIR = '/home/ryan/cs/datasets/srhm/'
 
-def import_clean():
-    train, test, macro = import_files()
-    # messed up the order here, moved clean_data to middle of import_files
-    # because clean_data was written before the error_fixes came out
-    return train, test, macro
+# important macro columns 
+# https://www.kaggle.com/robertoruiz/dealing-with-multicollinearity
+MACRO_COLUMNS = ['timestamp', 'balance_trade', 'balance_trade_growth', 'eurrub',
+                 'average_provision_of_build_contract', 'micex_rgbi_tr',
+                 'micex_cbi_tr', 'deposits_rate', 'mortgage_value',
+                 'mortgage_rate', 'income_per_cap', 'rent_price_4+room_bus',
+                 'museum_visitis_per_100_cap', 'apartment_build']
 
-def import_files():
+def import_clean():
     train = pd.read_csv(join(DS_DIR, 'train.csv'), parse_dates=['timestamp'])
     test = pd.read_csv(join(DS_DIR, 'test.csv'), parse_dates=['timestamp'])
     macro = pd.read_csv(join(DS_DIR, 'macro.csv'), parse_dates=['timestamp'])
+    # macro = macro.set_index('timestamp')  
+
+    macro = macro[MACRO_COLUMNS]
     error_fixes = pd.read_excel(join(DS_DIR, 'error_fixes.xlsx'))
     error_fixes = error_fixes.drop_duplicates('id').set_index('id')
 
@@ -27,8 +32,11 @@ def import_files():
     test_lat_lon = pd.read_csv(join(DS_DIR, 'test_lat_lon.csv'))
     train = train.merge(train_lat_lon, on='id')
     test = test.merge(test_lat_lon, on='id')
+    
+    train = train.merge(macro, on='timestamp', how='left')
+    test = test.merge(macro, on='timestamp', how='left')
 
-    return train, test, macro
+    return train, test
 
 
 def clean_data(train, test):

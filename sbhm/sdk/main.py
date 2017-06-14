@@ -40,7 +40,7 @@ NUM_FOLDS = 5
 SUBMISSION_PATH = 'sub.csv'
 
 def generate_data():
-    train, test, macro = import_clean()
+    train, test = import_clean()
     encode_categorical_features(train, test)
     generate_time_features(train, test)
     generate_relative_square_footage(train, test)
@@ -55,11 +55,27 @@ def initialize_models():
     Note: the length of the last level must be 1 (i.e. len(levels[-1]) == 1)
     """
     levels = []
-    # L0 models
+    #############
+    # L0 MODELS #
+    #############
     models = []
-    models.append(NaiveXGB())
+    # models.append(NaiveXGB())
+    
+    xgb_params = {
+        'eta': 0.05,
+        'max_depth': 5,
+        'subsample': 1.0,
+        'colsample_bytree': 0.7,
+        'objective': 'reg:linear',
+        'eval_metric': 'rmse',
+        'silent': 1
+    }
+    models.append(NaiveXGB(name='BrunoModel', xgb_params=xgb_params))
     levels.append(models)
 
+    #############
+    # L1 MODELS #
+    #############
 
     return levels
 
