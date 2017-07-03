@@ -28,9 +28,13 @@ from feature_engineering.generate_features import \
     encode_categorical_features, \
     generate_time_features,\
     generate_relative_square_footage,\
-    generate_room_information
+    generate_room_information, \
+    adjust_for_inflation
 from utils.kfold import KFold
 from models.naive_xgb import NaiveXGB
+from models.light_gbm import LightGBM
+from models.neural_net import NeuralNet
+from models.elastic_net import ElasticNet
 import time
 import sys
 import math
@@ -41,10 +45,12 @@ SUBMISSION_PATH = 'sub.csv'
 
 def generate_data():
     train, test = import_clean()
+    adjust_for_inflation(train, test)
     encode_categorical_features(train, test)
     generate_time_features(train, test)
     generate_relative_square_footage(train, test)
     generate_room_information(train, test)
+    
     return train, test
 
 def initialize_models():
@@ -58,26 +64,48 @@ def initialize_models():
     #############
     # L0 MODELS #
     #############
-    models = []
-    # models.append(NaiveXGB())
-    
-    xgb_params = {
+    L0_models = []
+    L0_models.append(NeuralNet(features = ['full_sq', 'floor', 'build_year', 'life_sq',
+        'micex_cbi_tr', 'max_floor', 'eurrub', 'green_zone_km']))
+    L0_models.append(LightGBM())
+    bruno_params = {
+        'min_child_weight': 3,
+        'grow_policy': 'lossguide',
+        'max_leaves': 30,
+        'max_bins': 512,
         'eta': 0.05,
-        'max_depth': 5,
-        'subsample': 1.0,
+        'max_depth': 4,
+        'subsample': 0.7,
         'colsample_bytree': 0.7,
         'objective': 'reg:linear',
         'eval_metric': 'rmse',
         'silent': 1
     }
-    models.append(NaiveXGB(name='BrunoModel', xgb_params=xgb_params))
-    levels.append(models)
+    L0_models.append(NaiveXGB(name='BrunoModel', xgb_params=bruno_params, log_data=True))
+    L0_models.append(ElasticNet(features = 
+        ['full_sq', 'life_sq', 'floor', 'build_year', 'num_room', 'kitch_sq', 'full_all']))
+
+    L0_models.append(LightGBM(log_data=True))
+
+    xgb_params = {
+        'eta': 0.1,
+        'max_depth': 7,
+        'objective': 'reg:linear',
+        'silent':1
+    }
+    L0_models.append(NaiveXGB(xgb_params=xgb_params, log_data=True))
+    levels.append(L0_models)
+    
 
     #############
     # L1 MODELS #
     #############
+    L1_models = []
+    L1_models.append(NaiveXGB(xgb_params=bruno_params,name="L1", log_data=True))
+    levels.append(L1_models)
 
     return levels
+
 
 def train_and_test_level(models, train, test):
     X_trn = train.drop(LABEL_NAME, 1)
@@ -89,6 +117,7 @@ def train_and_test_level(models, train, test):
     for model in models:
         print '\tTraining {}...'.format(model.name)
         val_df[model.name], test_df[model.name] = kf.run_kfolds_on_model(model)
+        print '\tFinished training {}.'.format(model.name)
     return val_df, test_df
 
 def validate(preds, labels, loss='RMSLE'):
@@ -101,7 +130,7 @@ def validate(preds, labels, loss='RMSLE'):
         else:
             print '[ERROR] Unknown loss: {}'.format(loss)
             sys.exit(1)
-    print 'Validation loss is {:.5f}'.format(total / len(preds))
+    print 'Validation loss is {:.5f}'.format((total / len(preds))**0.5)
 
 def run():
     t = time.time()
@@ -125,8 +154,10 @@ def run():
     for i in range(len(levels)):
         print 'Training and testing L{} models with {} folds...'.format(i, NUM_FOLDS)
         out_train_df, out_test_df = train_and_test_level(levels[i], train, test)
+
         train = pd.concat([train, out_train_df], axis=1)
         test = pd.concat([test, out_test_df], axis=1)
+
         print 'Finished L{} training and testing in {:.2f} seconds.'.format(i, time.time()-t)
         t = time.time()
     

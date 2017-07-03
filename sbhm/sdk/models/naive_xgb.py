@@ -12,16 +12,17 @@ class NaiveXGB(Model):
     """
     Basic XGB model.
     """
-    def __init__(self, xgb_params=None, log_data=True, name='NaiveXGB', features=None):
+    def __init__(self, xgb_params=None, log_data=False, name='NaiveXGB', features=None,
+                 num_boost_rounds=None):
         self.model = None
-        self.num_boost_rounds = None
-        self.log_data = True
+        self.num_boost_rounds = num_boost_rounds
+        self.log_data = log_data
         if xgb_params is None:
             self.xgb_params = {
-                    'eta': 0.05,
-                    'max_depth': 5,
-                    'subsample': 0.7,
-                    'colsample_bytree': 0.7,
+                    # 'eta': 0.05,
+                    # 'max_depth': 6,
+                    # 'subsample': 0.6,
+                    # 'colsample_bytree': 1,
                     'objective': 'reg:linear',
                     'eval_metric': 'rmse',
                     'silent': 1

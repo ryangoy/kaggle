@@ -63,3 +63,150 @@ def generate_room_information(train, test):
 def generate_properties_per_loc(train, test):
     train['latlon_sum'] = train.groupby(['key']).transform(len)
     test['latlon_sum'] = test.groupby(['key']).transform(len)
+
+
+
+def adjust_for_inflation(train, test):
+
+    rate_2016_q2 = 1
+    rate_2016_q1 = rate_2016_q2 / .99903
+    rate_2015_q4 = rate_2016_q1 / .9831
+    rate_2015_q3 = rate_2015_q4 / .9834
+    rate_2015_q2 = rate_2015_q3 / .9815
+    rate_2015_q1 = rate_2015_q2 / .9932
+    rate_2014_q4 = rate_2015_q1 / 1.0112
+    rate_2014_q3 = rate_2014_q4 / 1.0169
+    rate_2014_q2 = rate_2014_q3 / 1.0086
+    rate_2014_q1 = rate_2014_q2 / 1.0126
+    rate_2013_q4 = rate_2014_q1 / 0.9902
+    rate_2013_q3 = rate_2013_q4 / 1.0041
+    rate_2013_q2 = rate_2013_q3 / 1.0044
+    rate_2013_q1 = rate_2013_q2 / 1.0104
+    rate_2012_q4 = rate_2013_q1 / 0.9832
+    rate_2012_q3 = rate_2012_q4 / 1.0277
+    rate_2012_q2 = rate_2012_q3 / 1.0279
+    rate_2012_q1 = rate_2012_q2 / 1.0279
+    rate_2011_q4 = rate_2012_q1 / 1.076
+    rate_2011_q3 = rate_2011_q4 / 1.0236
+    rate_2011_q2 = rate_2011_q3 / 1
+    rate_2011_q1 = rate_2011_q2 / 1.011
+
+    # test data
+    test['average_q_price'] = 1
+
+    test_2016_q2_index = test.loc[test['timestamp'].dt.year == 2016].loc[test['timestamp'].dt.month >= 4].loc[test['timestamp'].dt.month <= 7].index
+    test.loc[test_2016_q2_index, 'average_q_price'] = rate_2016_q2
+    # test.loc[test_2016_q2_index, 'year_q'] = '2016_q2'
+
+    test_2016_q1_index = test.loc[test['timestamp'].dt.year == 2016].loc[test['timestamp'].dt.month >= 1].loc[test['timestamp'].dt.month < 4].index
+    test.loc[test_2016_q1_index, 'average_q_price'] = rate_2016_q1
+    # test.loc[test_2016_q2_index, 'year_q'] = '2016_q1'
+
+    test_2015_q4_index = test.loc[test['timestamp'].dt.year == 2015].loc[test['timestamp'].dt.month >= 10].loc[test['timestamp'].dt.month < 12].index
+    test.loc[test_2015_q4_index, 'average_q_price'] = rate_2015_q4
+    # test.loc[test_2015_q4_index, 'year_q'] = '2015_q4'
+
+    test_2015_q3_index = test.loc[test['timestamp'].dt.year == 2015].loc[test['timestamp'].dt.month >= 7].loc[test['timestamp'].dt.month < 10].index
+    test.loc[test_2015_q3_index, 'average_q_price'] = rate_2015_q3
+    # test.loc[test_2015_q3_index, 'year_q'] = '2015_q3'
+
+    # test_2015_q2_index = test.loc[test['timestamp'].dt.year == 2015].loc[test['timestamp'].dt.month >= 4].loc[test['timestamp'].dt.month < 7].index
+    # test.loc[test_2015_q2_index, 'average_q_price'] = rate_2015_q2
+
+    # test_2015_q1_index = test.loc[test['timestamp'].dt.year == 2015].loc[test['timestamp'].dt.month >= 4].loc[test['timestamp'].dt.month < 7].index
+    # test.loc[test_2015_q1_index, 'average_q_price'] = rate_2015_q1
+
+
+    # train 2015
+    train['average_q_price'] = 1
+
+    train_2015_q4_index = train.loc[train['timestamp'].dt.year == 2015].loc[train['timestamp'].dt.month >= 10].loc[train['timestamp'].dt.month <= 12].index
+    # train.loc[train_2015_q4_index, 'price_doc'] = train.loc[train_2015_q4_index, 'price_doc'] * rate_2015_q4
+    train.loc[train_2015_q4_index, 'average_q_price'] = rate_2015_q4
+
+    train_2015_q3_index = train.loc[train['timestamp'].dt.year == 2015].loc[train['timestamp'].dt.month >= 7].loc[train['timestamp'].dt.month < 10].index
+    #train.loc[train_2015_q3_index, 'price_doc'] = train.loc[train_2015_q3_index, 'price_doc'] * rate_2015_q3
+    train.loc[train_2015_q3_index, 'average_q_price'] = rate_2015_q3
+
+    train_2015_q2_index = train.loc[train['timestamp'].dt.year == 2015].loc[train['timestamp'].dt.month >= 4].loc[train['timestamp'].dt.month < 7].index
+    #train.loc[train_2015_q2_index, 'price_doc'] = train.loc[train_2015_q2_index, 'price_doc'] * rate_2015_q2
+    train.loc[train_2015_q2_index, 'average_q_price'] = rate_2015_q2
+
+    train_2015_q1_index = train.loc[train['timestamp'].dt.year == 2015].loc[train['timestamp'].dt.month >= 1].loc[train['timestamp'].dt.month < 4].index
+    #train.loc[train_2015_q1_index, 'price_doc'] = train.loc[train_2015_q1_index, 'price_doc'] * rate_2015_q1
+    train.loc[train_2015_q1_index, 'average_q_price'] = rate_2015_q1
+
+
+    # train 2014
+    train_2014_q4_index = train.loc[train['timestamp'].dt.year == 2014].loc[train['timestamp'].dt.month >= 10].loc[train['timestamp'].dt.month <= 12].index
+    #train.loc[train_2014_q4_index, 'price_doc'] = train.loc[train_2014_q4_index, 'price_doc'] * rate_2014_q4
+    train.loc[train_2014_q4_index, 'average_q_price'] = rate_2014_q4
+
+    train_2014_q3_index = train.loc[train['timestamp'].dt.year == 2014].loc[train['timestamp'].dt.month >= 7].loc[train['timestamp'].dt.month < 10].index
+    #train.loc[train_2014_q3_index, 'price_doc'] = train.loc[train_2014_q3_index, 'price_doc'] * rate_2014_q3
+    train.loc[train_2014_q3_index, 'average_q_price'] = rate_2014_q3
+
+    train_2014_q2_index = train.loc[train['timestamp'].dt.year == 2014].loc[train['timestamp'].dt.month >= 4].loc[train['timestamp'].dt.month < 7].index
+    #train.loc[train_2014_q2_index, 'price_doc'] = train.loc[train_2014_q2_index, 'price_doc'] * rate_2014_q2
+    train.loc[train_2014_q2_index, 'average_q_price'] = rate_2014_q2
+
+    train_2014_q1_index = train.loc[train['timestamp'].dt.year == 2014].loc[train['timestamp'].dt.month >= 1].loc[train['timestamp'].dt.month < 4].index
+    #train.loc[train_2014_q1_index, 'price_doc'] = train.loc[train_2014_q1_index, 'price_doc'] * rate_2014_q1
+    train.loc[train_2014_q1_index, 'average_q_price'] = rate_2014_q1
+
+
+    # train 2013
+    train_2013_q4_index = train.loc[train['timestamp'].dt.year == 2013].loc[train['timestamp'].dt.month >= 10].loc[train['timestamp'].dt.month <= 12].index
+    # train.loc[train_2013_q4_index, 'price_doc'] = train.loc[train_2013_q4_index, 'price_doc'] * rate_2013_q4
+    train.loc[train_2013_q4_index, 'average_q_price'] = rate_2013_q4
+
+    train_2013_q3_index = train.loc[train['timestamp'].dt.year == 2013].loc[train['timestamp'].dt.month >= 7].loc[train['timestamp'].dt.month < 10].index
+    # train.loc[train_2013_q3_index, 'price_doc'] = train.loc[train_2013_q3_index, 'price_doc'] * rate_2013_q3
+    train.loc[train_2013_q3_index, 'average_q_price'] = rate_2013_q3
+
+    train_2013_q2_index = train.loc[train['timestamp'].dt.year == 2013].loc[train['timestamp'].dt.month >= 4].loc[train['timestamp'].dt.month < 7].index
+    # train.loc[train_2013_q2_index, 'price_doc'] = train.loc[train_2013_q2_index, 'price_doc'] * rate_2013_q2
+    train.loc[train_2013_q2_index, 'average_q_price'] = rate_2013_q2
+
+    train_2013_q1_index = train.loc[train['timestamp'].dt.year == 2013].loc[train['timestamp'].dt.month >= 1].loc[train['timestamp'].dt.month < 4].index
+    # train.loc[train_2013_q1_index, 'price_doc'] = train.loc[train_2013_q1_index, 'price_doc'] * rate_2013_q1
+    train.loc[train_2013_q1_index, 'average_q_price'] = rate_2013_q1
+
+
+    # train 2012
+    train_2012_q4_index = train.loc[train['timestamp'].dt.year == 2012].loc[train['timestamp'].dt.month >= 10].loc[train['timestamp'].dt.month <= 12].index
+    # train.loc[train_2012_q4_index, 'price_doc'] = train.loc[train_2012_q4_index, 'price_doc'] * rate_2012_q4
+    train.loc[train_2012_q4_index, 'average_q_price'] = rate_2012_q4
+
+    train_2012_q3_index = train.loc[train['timestamp'].dt.year == 2012].loc[train['timestamp'].dt.month >= 7].loc[train['timestamp'].dt.month < 10].index
+    # train.loc[train_2012_q3_index, 'price_doc'] = train.loc[train_2012_q3_index, 'price_doc'] * rate_2012_q3
+    train.loc[train_2012_q3_index, 'average_q_price'] = rate_2012_q3
+
+    train_2012_q2_index = train.loc[train['timestamp'].dt.year == 2012].loc[train['timestamp'].dt.month >= 4].loc[train['timestamp'].dt.month < 7].index
+    # train.loc[train_2012_q2_index, 'price_doc'] = train.loc[train_2012_q2_index, 'price_doc'] * rate_2012_q2
+    train.loc[train_2012_q2_index, 'average_q_price'] = rate_2012_q2
+
+    train_2012_q1_index = train.loc[train['timestamp'].dt.year == 2012].loc[train['timestamp'].dt.month >= 1].loc[train['timestamp'].dt.month < 4].index
+    # train.loc[train_2012_q1_index, 'price_doc'] = train.loc[train_2012_q1_index, 'price_doc'] * rate_2012_q1
+    train.loc[train_2012_q1_index, 'average_q_price'] = rate_2012_q1
+
+
+    # train 2011
+    train_2011_q4_index = train.loc[train['timestamp'].dt.year == 2011].loc[train['timestamp'].dt.month >= 10].loc[train['timestamp'].dt.month <= 12].index
+    # train.loc[train_2011_q4_index, 'price_doc'] = train.loc[train_2011_q4_index, 'price_doc'] * rate_2011_q4
+    train.loc[train_2011_q4_index, 'average_q_price'] = rate_2011_q4
+
+    train_2011_q3_index = train.loc[train['timestamp'].dt.year == 2011].loc[train['timestamp'].dt.month >= 7].loc[train['timestamp'].dt.month < 10].index
+    # train.loc[train_2011_q3_index, 'price_doc'] = train.loc[train_2011_q3_index, 'price_doc'] * rate_2011_q3
+    train.loc[train_2011_q3_index, 'average_q_price'] = rate_2011_q3
+
+    train_2011_q2_index = train.loc[train['timestamp'].dt.year == 2011].loc[train['timestamp'].dt.month >= 4].loc[train['timestamp'].dt.month < 7].index
+    # train.loc[train_2011_q2_index, 'price_doc'] = train.loc[train_2011_q2_index, 'price_doc'] * rate_2011_q2
+    train.loc[train_2011_q2_index, 'average_q_price'] = rate_2011_q2
+
+    train_2011_q1_index = train.loc[train['timestamp'].dt.year == 2011].loc[train['timestamp'].dt.month >= 1].loc[train['timestamp'].dt.month < 4].index
+    # train.loc[train_2011_q1_index, 'price_doc'] = train.loc[train_2011_q1_index, 'price_doc'] * rate_2011_q1
+    train.loc[train_2011_q1_index, 'average_q_price'] = rate_2011_q1
+
+    #train['price_doc'] = train['price_doc'] * train['average_q_price']
+    # train.drop('average_q_price', axis=1, inplace=True)
