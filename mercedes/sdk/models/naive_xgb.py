@@ -4,8 +4,8 @@ import xgboost as xgb
 from model import Model
 
 NUM_ROUND_SPLIT = .8
-EARLY_STOPPING_ROUNDS = 50
-VERBOSE_INTERVAL = False
+EARLY_STOPPING_ROUNDS = 10
+VERBOSE_INTERVAL = 100
 NUM_BOOST_ROUND = 2000
 
 # note: not using find_num_boost_round feature currently
@@ -15,7 +15,8 @@ class NaiveXGB(Model):
     Basic XGB model.
     """
     def __init__(self, xgb_params=None, log_data=False, name='NaiveXGB', features=None,
-                 num_boost_rounds=NUM_BOOST_ROUND, custom_eval=None, maximize=False):
+                 num_boost_rounds=NUM_BOOST_ROUND, custom_eval=None, maximize=False,
+                 early_stopping_rounds=EARLY_STOPPING_ROUNDS):
         self.model = None
         self.num_boost_rounds = num_boost_rounds
         self.log_data = log_data
@@ -30,6 +31,7 @@ class NaiveXGB(Model):
         self.features = features
         self.custom_eval = custom_eval
         self.maximize = maximize
+        self.early_stopping_rounds = early_stopping_rounds
 
     def generate_feval(self, loss_fn, name='custom_loss'):
         if loss_fn is None:
@@ -48,10 +50,10 @@ class NaiveXGB(Model):
         d_trn = xgb.DMatrix(X_trn.iloc[:split], label=y_trn.iloc[:split])
         d_val = xgb.DMatrix(X_trn.iloc[split:], label=y_trn.iloc[split:])
         val_model = xgb.train(self.xgb_params, d_trn, 
-                  num_boost_round=NUM_BOOST_ROUND,
+                  num_boost_round=self.num_boost_rounds,
                   evals=[(d_val, 'val')], 
-                  early_stopping_rounds=EARLY_STOPPING_ROUNDS,
-                  verbose_eval=VERBOSE_INTERVAL)
+                  early_stopping_rounds=self.early_stopping_rounds,
+                  verbose_eval=False)
         return val_model.best_iteration
 
     def train(self, X_trn, y_trn, X_val=None, y_val=None):
@@ -74,9 +76,9 @@ class NaiveXGB(Model):
                                num_boost_round=self.num_boost_rounds,
                                evals = watchlist,
                                feval=xgb_loss_function,
-                               early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+                               early_stopping_rounds=self.num_boost_rounds,
                                maximize=self.maximize,
-                               verbose_eval=100)
+                               verbose_eval=VERBOSE_INTERVAL)
 
     def test(self, X_test, y_test=None):
         if self.features is not None:

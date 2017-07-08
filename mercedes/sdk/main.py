@@ -21,13 +21,14 @@ each trained fold and averaged over the number of folds at the end.
 simple and readable.
 
 TO DO per dataset:
- - change the constants starting at line 42
+ - change the constants starting at line 45
  - customize levels and their parameters (note: levels is a 2D array)
  - change print_loss to a loss function of the competition
 """
 
 import numpy as np
 import pandas as pd
+from os.path import join
 from feature_engineering.preprocess import import_clean
 from feature_engineering.generate_features import \
     generate_features
@@ -46,6 +47,10 @@ LABEL_NAME = 'y'
 ID_NAME = 'ID'
 NUM_FOLDS = 5
 SUBMISSION_PATH = 'sub.csv'
+DS_DIR = '/home/ryan/cs/datasets/mercedes/'
+RELOAD = False # re-generate features
+TRAIN_RELOAD_PATH = join(DS_DIR, 'train_reload.csv')
+TEST_RELOAD_PATH = join(DS_DIR, 'test_reload.csv')
 
 def initialize_models():
     """
@@ -59,22 +64,28 @@ def initialize_models():
     # L0 MODELS #
     #############
     L0_models = []
-    params = {}
-    params['objective'] = 'reg:linear'
-    params['eta'] = 0.02
-    params['max_depth'] = 4
-    params['silent'] = 1
+    params = {
+        'n_trees': 200, 
+        'eta': 0.005,
+        'max_depth': 6,
+        'subsample': 0.85,
+        'objective': 'reg:linear',
+        'eval_metric': 'rmse',
+        'silent': 1
+        }
     xgb_params = {
-    'n_trees': 500, 
-    'eta': 0.005,
-    'max_depth': 4,
-    'subsample': 0.95,
-    'objective': 'reg:linear',
-    'eval_metric': 'rmse',
-    'silent': 1
-}
-    L0_models.append(NaiveXGB(xgb_params=xgb_params, log_data=False, 
-                              custom_eval=r2_score, maximize=True))
+        'n_trees': 500, 
+        'eta': 0.005,
+        'max_depth': 4,
+        'subsample': 0.95,
+        'objective': 'reg:linear',
+        'eval_metric': 'rmse',
+        'silent': 1
+    }
+    # L0_models.append(NaiveXGB(xgb_params=params, log_data=False, 
+    #                           custom_eval=r2_score, maximize=True, 
+    #                           early_stopping_rounds=20))
+    L0_models.append(NeuralNet(features=['X0']))
     levels.append(L0_models)
     
 
@@ -91,7 +102,7 @@ def print_loss(preds, labels, loss='R2'):
     assert len(preds) == len(labels)
     total = 0
     if loss == 'R2':
-        total = r2_score(labels, preds)
+        total = -1*r2_score(labels, preds)
     elif loss == 'RMSLE': # for custom loss functions
         for pred, label in zip(preds, labels):
             total += (math.log(pred+1) - math.log(label+1))**2
@@ -105,8 +116,15 @@ def print_loss(preds, labels, loss='R2'):
 # Do not modify #
 #################
 def generate_data():
-    train, test = import_clean()
-    generate_features(train, test)
+    if RELOAD:
+        train, test = import_clean(DS_DIR)
+        generate_features(train, test)
+        if TRAIN_RELOAD_PATH is not None and TEST_RELOAD_PATH is not None:
+            train.to_csv(TRAIN_RELOAD_PATH)
+            test.to_csv(TEST_RELOAD_PATH)
+    else:
+        train = pd.read_csv(TRAIN_RELOAD_PATH)
+        test = pd.read_csv(TEST_RELOAD_PATH)
     return train, test
 
 def train_and_test_level(models, train, test):

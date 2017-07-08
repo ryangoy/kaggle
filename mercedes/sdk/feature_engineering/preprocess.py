@@ -4,15 +4,11 @@ from os.path import join
 import sys
 
 # TO DO per dataset:
-# - change the DS_DIR path
 # - change the clean_data method to whatever is needed
 
-DS_DIR = '/home/ryan/cs/datasets/mercedes/'
-
-def import_clean():
-    train = pd.read_csv(join(DS_DIR, 'train.csv'))
-    test = pd.read_csv(join(DS_DIR, 'test.csv'))
-
+def import_clean(ds_dir):
+    train = pd.read_csv(join(ds_dir, 'train.csv'))
+    test = pd.read_csv(join(ds_dir, 'test.csv'))
     train, test = clean_data(train, test)
 
     return train, test
@@ -24,6 +20,7 @@ def clean_data(train, test):
                        'X330', 'X347']
     train = train.drop(useless_columns, axis=1)
     test = test.drop(useless_columns, axis=1)
-    train = train[train.y <= 200]
+    train.y[train.y > 200] = 200
 
     return train, test
+

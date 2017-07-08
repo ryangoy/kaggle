@@ -36,7 +36,7 @@ class KFold:
             index += 1
 
         # un-shuffle the predictions
-        return all_val_preds[pred_indices], test_preds.median(axis=1) # maybe use median instead?
+        return all_val_preds[pred_indices], test_preds.mean(axis=1) # maybe use median instead?
 
 
 
