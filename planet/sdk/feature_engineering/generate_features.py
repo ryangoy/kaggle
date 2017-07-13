@@ -12,18 +12,7 @@ SEED = 0
 
 def generate_features(train, test):
     # call desired feature generation methods here
-    print 'Encoding categorical features...'
-    encode_categorical_features(train, test)
-    print 'Filling duplicate rows with mean y...'
-    #fill_duplicates_with_mean(train, test)
-    print 'Generating duplicate counts...'
-    free_labels = generate_duplicate_count(train, test)
-    print 'Generating mean y features...'
-    generate_mean_y_features(train, test)
-    ##MUST COME AFTER DUPLICATE OPERATIONS
-    print 'Generating decomposition features...'
-    generate_decomposition_features(train, test)
-    return free_labels
+    return
 
 def encode_categorical_features(train, test):
     for c in train.columns:
@@ -131,11 +120,6 @@ def generate_duplicate_count(train, test):
     train.num_duplicates = train.num_duplicates.fillna(1)
     test.num_duplicates = test.num_duplicates.fillna(1)
     return free_labels
-
-def generate_bitwise_features(train, test):
-    # create bitwise features then use feature elimination
-    
-    return
 
 # generic time feature generation from data objects (from SBHM kaggle competition)
 def generate_time_features(train, test):   

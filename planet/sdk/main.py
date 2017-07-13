@@ -40,6 +40,7 @@ from models.elastic_net import ElasticNet
 from models.decision_tree_regressor import DecisionTreeRegressor
 from models.extra_trees_regressor import ExtraTreesRegressor
 from models.lasso_lars import LassoLars
+from models.vgg16_model import VGG16
 import time
 import sys
 import math
@@ -64,7 +65,7 @@ def initialize_models():
     Note: the length of the last level must be 1 (i.e. len(levels[-1]) == 1)
     """
     models = [
-
+        VGG16()
     ]
     return models
 

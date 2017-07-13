@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 from sklearn import model_selection
-
+from sklearn.metrics import r2_score
+from sklearn.feature_selection import VarianceThreshold, SelectKBest, f_regression, SelectFromModel
+from sklearn.svm import LinearSVC
 SEED = 0
 
 class KFold:
@@ -12,6 +14,13 @@ class KFold:
         self.X_test = X_test
         kf = model_selection.KFold(n_splits=num_folds, random_state=SEED, shuffle=True)
         self.splits = list(kf.split(X_trn))
+        #self.feature_select()
+
+    def feature_select(self):
+        #sel = SelectPercentile(f_regre)
+        sel = SelectKBest(f_regression, k=100)
+        self.X_trn = pd.DataFrame(sel.fit_transform(self.X_trn, self.y_trn))
+        self.X_test = pd.DataFrame(sel.transform(self.X_test))
 
     def run_kfolds_on_model(self, model):
         pred_indices = np.array([], dtype=int)
@@ -36,7 +45,8 @@ class KFold:
             index += 1
 
         # un-shuffle the predictions
-        return all_val_preds[pred_indices], test_preds.mean(axis=1) # maybe use median instead?
+        sorted_indices = np.argsort(pred_indices)
+        return all_val_preds[sorted_indices], test_preds.mean(axis=1) # maybe use median instead?
 
 
 

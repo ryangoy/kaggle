@@ -20,7 +20,8 @@ def clean_data(train, test):
                        'X330', 'X347']
     train = train.drop(useless_columns, axis=1)
     test = test.drop(useless_columns, axis=1)
-    train.y[train.y > 200] = 200
+    #train = train[train.y <= 200]
+    train[train.y >= 200] = 125
 
     return train, test
 

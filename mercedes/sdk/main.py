@@ -37,6 +37,9 @@ from models.naive_xgb import NaiveXGB
 from models.light_gbm import LightGBM
 from models.neural_net import NeuralNet
 from models.elastic_net import ElasticNet
+from models.decision_tree_regressor import DecisionTreeRegressor
+from models.extra_trees_regressor import ExtraTreesRegressor
+from models.lasso_lars import LassoLars
 import time
 import sys
 import math
@@ -46,6 +49,7 @@ from sklearn.metrics import r2_score
 LABEL_NAME = 'y'
 ID_NAME = 'ID'
 NUM_FOLDS = 5
+SEED = 0
 SUBMISSION_PATH = 'sub.csv'
 DS_DIR = '/home/ryan/cs/datasets/mercedes/'
 RELOAD = False # re-generate features
@@ -63,7 +67,7 @@ def initialize_models():
     #############
     # L0 MODELS #
     #############
-    L0_models = []
+    
     params = {
         'n_trees': 200, 
         'eta': 0.005,
@@ -73,27 +77,50 @@ def initialize_models():
         'eval_metric': 'rmse',
         'silent': 1
         }
-    xgb_params = {
-        'n_trees': 500, 
-        'eta': 0.005,
-        'max_depth': 4,
-        'subsample': 0.95,
+    my_xgb_params = {
+        #'n_trees': 300, 
+        'eta': .005,
+        'max_depth': 5,
+        'subsample': 0.6,
         'objective': 'reg:linear',
+        #'eval_metric': 'r2_obj',
         'eval_metric': 'rmse',
+        'colsample_bytree': 0.3,
         'silent': 1
     }
-    # L0_models.append(NaiveXGB(xgb_params=params, log_data=False, 
-    #                           custom_eval=r2_score, maximize=True, 
-    #                           early_stopping_rounds=20))
-    L0_models.append(NeuralNet(features=['X0']))
+
+    L0_models = [
+        # DecisionTreeRegressor(),
+        # ExtraTreesRegressor(),
+        # LassoLars(),
+        # # NaiveXGB(xgb_params=params, log_data=False, 
+        # #       custom_eval=r2_score, maximize=True, 
+        # #       early_stopping_rounds=20),
+        # #NeuralNet(),
+        # NaiveXGB(xgb_params=my_xgb_params, maximize=True, custom_eval=r2_score,
+        #           early_stopping_rounds=5, use_r2=False, num_boost_rounds=1100),
+        # LightGBM(),
+        ElasticNet(alpha=0.7, l1_ratio=0.4, fit_intercept=True, normalize=False,
+                  max_iter=3000, tol=0.0001, random_state=SEED),
+
+
+    ]
     levels.append(L0_models)
-    
 
     #############
     # L1 MODELS #
     #############
-    L1_models = []
-
+    L1_models = [
+        # NaiveXGB(name="stacked", #features = ['ElasticNet', 'LightGBM', 'NeuralNet'], 
+        #     custom_eval=r2_score, maximize=True, use_r2=True, early_stopping_rounds=5,
+        #     num_boost_rounds=3000),
+        ElasticNet(alpha=0.7, l1_ratio=0.4, fit_intercept=True, normalize=False,
+                  max_iter=3000, tol=0.0001, random_state=SEED,),
+        # LassoLars(features=['DecisionTreeRegressor', 'ExtraTreesRegressor', 'LightGBM', 'ElasticNet',
+        #     'NaiveXGB', 'LightGBM'])
+        # ExtraTreesRegressor(features=['DecisionTreeRegressor', 'ExtraTreesRegressor', 'LightGBM', 'ElasticNet',
+        #      'NaiveXGB', 'LightGBM']),
+    ]
     #levels.append(L1_models)
 
     return levels
@@ -102,7 +129,7 @@ def print_loss(preds, labels, loss='R2'):
     assert len(preds) == len(labels)
     total = 0
     if loss == 'R2':
-        total = -1*r2_score(labels, preds)
+        total = r2_score(labels, preds)
     elif loss == 'RMSLE': # for custom loss functions
         for pred, label in zip(preds, labels):
             total += (math.log(pred+1) - math.log(label+1))**2
@@ -116,16 +143,17 @@ def print_loss(preds, labels, loss='R2'):
 # Do not modify #
 #################
 def generate_data():
+    free_labels = None
     if RELOAD:
         train, test = import_clean(DS_DIR)
-        generate_features(train, test)
+        free_labels = generate_features(train, test)
         if TRAIN_RELOAD_PATH is not None and TEST_RELOAD_PATH is not None:
             train.to_csv(TRAIN_RELOAD_PATH)
             test.to_csv(TEST_RELOAD_PATH)
     else:
         train = pd.read_csv(TRAIN_RELOAD_PATH)
         test = pd.read_csv(TEST_RELOAD_PATH)
-    return train, test
+    return train, test, free_labels
 
 def train_and_test_level(models, train, test):
     X_trn = train.drop(LABEL_NAME, 1)
@@ -147,7 +175,7 @@ def run():
 
     # feature engineering
     print 'Importing and generating features...'
-    train, test = generate_data()
+    train, test, free_labels = generate_data()
     print 'Finished in {:.2f} seconds.'.format(time.time()-t)
     t = time.time()
     
@@ -163,10 +191,8 @@ def run():
     for i in range(len(levels)):
         print 'Training and testing L{} models with {} folds...'.format(i, NUM_FOLDS)
         out_train_df, out_test_df = train_and_test_level(levels[i], train, test)
-
         train = pd.concat([train, out_train_df], axis=1)
         test = pd.concat([test, out_test_df], axis=1)
-
         print 'Finished L{} training and testing in {:.2f} seconds.'.format(i, time.time()-t)
         t = time.time()
 
@@ -174,6 +200,11 @@ def run():
     submission_df = pd.DataFrame()
     submission_df[ID_NAME] = test[ID_NAME]
     submission_df[LABEL_NAME] = test.iloc[:,-1]
+    if free_labels is not None:
+        submission_df = submission_df.merge(free_labels, on='ID', how='left', suffixes=('', '_free'))
+        submission_df.y_free = submission_df.y_free.astype(float)
+        submission_df['y'] = np.where(np.isnan(submission_df['y_free']), 
+                        submission_df['y'], submission_df['y_free'])
     submission_df.to_csv(SUBMISSION_PATH, index=False)
     print 'Total runtime: {:.2f} seconds'.format(time.time()-start_time)
 

@@ -12,7 +12,7 @@ class LightGBM(Model):
     """
     Basic XGB model.
     """
-    def __init__(self, lgb_params=None, log_data=True, name='NaiveLGB', features=None):
+    def __init__(self, lgb_params=None, log_data=True, name='LightGBM', features=None):
         self.model = None
         self.num_boost_rounds = None
         self.log_data = True
@@ -26,7 +26,9 @@ class LightGBM(Model):
                 'feature_fraction': 0.9,
                 'bagging_fraction': 0.8,
                 'bagging_freq': 5,
-                'verbose': 0
+                'verbose': 0,
+                'max_depth': 60,
+
             }
         else:
             self.lgb_params = lgb_params
@@ -49,17 +51,21 @@ class LightGBM(Model):
                   verbose_eval=False)
         return val_model.best_iteration
 
-    def train(self, X_trn, y_trn):
+    def train(self, X_trn, y_trn, X_val=None, y_val=None):
         if self.features is not None:
             X_trn = X_trn[self.features]
+            if X_val is not None:
+                X_val = X_val[self.features]
         if self.log_data:
             y_trn = np.log1p(y_trn)
         if self.num_boost_rounds is None:
             self.num_boost_rounds = self.find_num_boost_round(X_trn, y_trn)
         self.lgb_params['task'] = 'train'
         lgb_train = lgb.Dataset(X_trn, y_trn)
+        lgb_val = lgb.Dataset(X_val, y_val, reference=lgb_train)
         self.model = lgb.train(self.lgb_params, lgb_train, 
-            num_boost_round=self.num_boost_rounds, verbose_eval=False)
+            num_boost_round=self.num_boost_rounds, verbose_eval=False,
+            valid_sets=lgb_val)
 
     def test(self, X_test, y_test=None):
         if self.features is not None:

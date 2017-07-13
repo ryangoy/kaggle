@@ -14,19 +14,16 @@ def generate_features(train, test):
     # call desired feature generation methods here
     print 'Encoding categorical features...'
     encode_categorical_features(train, test)
-    
     print 'Filling duplicate rows with mean y...'
-    free_test_labels = fill_duplicates_with_mean(train, test)
+    #fill_duplicates_with_mean(train, test)
     print 'Generating duplicate counts...'
-    generate_duplicate_count(train, test)
+    free_labels = generate_duplicate_count(train, test)
     print 'Generating mean y features...'
     generate_mean_y_features(train, test)
-    # MUST COME AFTER DUPLICATE OPERATIONS
+    ##MUST COME AFTER DUPLICATE OPERATIONS
     print 'Generating decomposition features...'
     generate_decomposition_features(train, test)
-
-    return 0
-    #return free_test_labels
+    return free_labels
 
 def encode_categorical_features(train, test):
     for c in train.columns:
@@ -94,27 +91,37 @@ def fill_duplicates_with_mean(train, test):
     merged_train['y'] = np.where(np.isnan(merged_train['y_mean']), 
                         merged_train['y'], merged_train['y_mean'])
     merged_train = merged_train.drop('y_mean', axis=1)
-    free_labels = test.merge(merged_train, how='left', on=list(usable_cols), suffixes=('','_extra'))
-    free_labels = free_labels[['ID', 'y']]
+    #free_labels = test.merge(merged_train, how='left', on=list(usable_cols), suffixes=('','_extra'))
+    #free_labels = free_labels[['ID', 'y']]
 
-    train['y'] = merged_train['y']
-    return free_labels
+    #train['y'] = merged_train['y']
+    #return free_labels
 
 def generate_duplicate_count(train, test):
     usable_cols = train.columns.drop(['ID','y'])
     data = pd.concat([train.drop('y', axis=1), test])
     grouped = data.groupby(list(usable_cols))
+    free_labels = pd.DataFrame(columns=['ID', 'y'])
 
     count = 0
+    free_labels_count = 0
     num_duplicate_values = pd.DataFrame(columns=['ID', 'num_duplicates'])
     for name, group in grouped:
         if group.shape[0] > 1:
+            possible_y_value = None
             for i in group.ID.values:
                 num_duplicate_values.loc[count] = [i, len(group.ID.values)]
-                count += 1
+                count += 1              
+                if i in train['ID'].values:
+                    possible_y_value = train[train['ID'] == i].y
+            if possible_y_value is not None:
+                for i in group.ID.values:
+                    free_labels.loc[free_labels_count] = [i, possible_y_value]
+                    free_labels_count+=1
+
     num_duplicate_values.ID = num_duplicate_values.ID.astype(int)
     num_duplicate_values.num_duplicates = \
-                num_duplicate_values.num_duplicates.astype(int)
+            num_duplicate_values.num_duplicates.astype(int)    
 
     merged_train = train.merge(num_duplicate_values, how='left', on='ID', suffixes=('','_dup_ERROR'))
     merged_test = test.merge(num_duplicate_values, how='left', on='ID', suffixes=('','_dup_ERROR'))
@@ -123,6 +130,7 @@ def generate_duplicate_count(train, test):
 
     train.num_duplicates = train.num_duplicates.fillna(1)
     test.num_duplicates = test.num_duplicates.fillna(1)
+    return free_labels
 
 def generate_bitwise_features(train, test):
     # create bitwise features then use feature elimination
