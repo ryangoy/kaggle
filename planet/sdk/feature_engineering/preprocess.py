@@ -14,12 +14,12 @@ def import_clean(ds_dir):
 def one_hot_vectorize_labels(ds_dir):
     """
     For planet competition. Load in training csv and process the
-    label column.
+    label column. See one_hot_vectorize_train_csv.ipynb in the ipython folder.
     """
-    labels_file = join(ds_dir, 'orig/train_v2.csv')
+    train = pd.read_csv(join(ds_dir, 'processed/train.csv'))
     return
 
-def generate_binary_classifier_structure(ds_dir):
+def generate_binary_classifier_structure(train_folder, feature_name):
     """
     Copies data from original data to another folder where each subfolder
     is the label.
@@ -33,7 +33,7 @@ def import_data():
     test = pd.read_csv(join(ds_dir, 'test.csv'))
     return train, test
 
-def clean_data(train, test):
+def clean_mercedes_data(train, test):
     useless_columns = ['X11', 'X93', 'X107', 'X233', 'X235', 
                        'X268', 'X289', 'X290', 'X293', 'X297', 
                        'X330', 'X347']

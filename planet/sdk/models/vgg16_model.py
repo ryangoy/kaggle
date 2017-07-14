@@ -15,7 +15,7 @@ class VGG16(Model):
     """
     VGG16 model. Uses Keras's 
     """
-    def __init__(self, train_dir, test_dir, name='VGG16', labels=None, num_epochs=10,
+    def __init__(self, name='VGG16', labels=None, num_epochs=10,
                  batch_size=32, classes=None, verbose=1, 
                  num_test_images=40479, num_test_images= 61191,
                  augmentation_params={}):
