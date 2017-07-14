@@ -9,8 +9,7 @@ from shutil import copyfile, rmtree
 # - change the clean_data method to whatever is needed
 
 def import_clean(ds_dir):
-    id_to_labels = one_hot_vectorize_labels(ds_dir)
-    generate_binary_classifier_structure(ds_dir)
+    train, test = one_hot_vectorize_labels(ds_dir)
     return train, test
 
 def one_hot_vectorize_labels(ds_dir):
@@ -19,7 +18,7 @@ def one_hot_vectorize_labels(ds_dir):
     label column. See one_hot_vectorize_train_csv.ipynb in the ipython folder.
     """
     train = pd.read_csv(join(ds_dir, 'processed/train.csv'))
-    return
+    return train, None
 
 # UNTESTED
 def generate_binary_data_structure(train_folder, target_folder, train_df, feature_name,
