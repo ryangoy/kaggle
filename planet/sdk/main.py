@@ -56,8 +56,11 @@ DS_DIR = '/home/ryan/cs/datasets/planet/'
 RELOAD = False # re-generate features
 TRAIN_RELOAD_PATH = join(DS_DIR, 'train_reload.csv')
 TEST_RELOAD_PATH = join(DS_DIR, 'test_reload.csv')
-TRAIN_IMAGES = join(DS_DIR, 'original/train')
+TRAIN_IMAGES = join(DS_DIR, 'original/train-jpg')
 TARGET_FOLDER = join(DS_DIR, 'binary')
+LABELS_PATH = join(DS_DIR, 'processed/train.csv')
+TEST_IMAGES = join(DS_DIR, 'original/test-jpg')
+IMAGE_EXTENSION = '.jpg'
 
 def initialize_models():
     """
@@ -99,29 +102,19 @@ def generate_data():
     return train, test
 
 
-def train_models(models, train):
+def train_models(models, labels_df):
     """
     @param models: array of models
-    @param train: DataFrame with label columns. If using images, train should have
-                  the path to the directory as X_trn for keras's flow_from_directory
+    @param train: DataFrame with label columns.
     """
-    if type(train) is str:
-        X_trn = train
-        y_trn = None
-    else:
-        X_trn = train.drop(LABEL_NAME, 1)
-        y_trn = train[LABEL_NAME]
-    
-    val_df = pd.DataFrame()
     for model in models:
         print '\tMoving images...'
-        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, X_trn, 'primary',
-                                       extension='.jpg')
+        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, labels_df, 'primary',
+                                       extension=IMAGE_EXTENSION)
         print '\tTraining {}...'.format(model.name)
-        val_df[model.name] = model.train(X_trn, y_trn) 
+        # history is easily graphable, not doing anything with this yet
+        history = model.train(TARGET_FOLDER, None) 
         print '\tFinished training {}.'.format(model.name)
-        print_loss(val_df[model.name], y_trn)
-    return val_df
 
 def test_models(models, test):
     test_df = pd.DataFrame()
@@ -151,11 +144,11 @@ def run():
     t = time.time()
 
     print 'Training models...'
-    val_df = train_models(models, train)
+    val_df = train_models(models, LABELS_PATH)
     print 'Finished in {:2f} seconds'.format(time.time()-start_time)
 
     print 'Testing models...'
-    preds_df = test_models(models. test)
+    preds_df = test_models(models, TEST_IMAGES)
     print 'Finished in {:2f} seconds'.format(time.time()-start_time)
 
     print 'Writing submission...'
