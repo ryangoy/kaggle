@@ -29,7 +29,7 @@ TO DO per dataset:
 import numpy as np
 import pandas as pd
 from os.path import join
-from feature_engineering.preprocess import import_clean
+from feature_engineering.preprocess import import_clean, generate_binary_data_structure
 from feature_engineering.generate_features import \
     generate_features
 from utils.kfold import KFold
@@ -56,6 +56,8 @@ DS_DIR = '/home/ryan/cs/datasets/planet/'
 RELOAD = False # re-generate features
 TRAIN_RELOAD_PATH = join(DS_DIR, 'train_reload.csv')
 TEST_RELOAD_PATH = join(DS_DIR, 'test_reload.csv')
+TRAIN_IMAGES = join(DS_DIR, 'original/train')
+TARGET_FOLDER = join(DS_DIR, 'binary')
 
 def initialize_models():
     """
@@ -112,6 +114,9 @@ def train_models(models, train):
     
     val_df = pd.DataFrame()
     for model in models:
+        print '\tMoving images...'
+        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, X_trn, 'primary',
+                                       extension='.jpg')
         print '\tTraining {}...'.format(model.name)
         val_df[model.name] = model.train(X_trn, y_trn) 
         print '\tFinished training {}.'.format(model.name)
