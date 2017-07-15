@@ -37,7 +37,6 @@ from models.naive_xgb import NaiveXGB
 from models.light_gbm import LightGBM
 from models.neural_net import NeuralNet
 from models.elastic_net import ElasticNet
-from models.decision_tree_regressor import DecisionTreeRegressor
 from models.extra_trees_regressor import ExtraTreesRegressor
 from models.lasso_lars import LassoLars
 from models.vgg16_model import VGG16
@@ -54,8 +53,6 @@ SEED = 0
 SUBMISSION_PATH = '/home/ryan/cs/kaggle/planet/submissions/sub.csv'
 DS_DIR = '/home/ryan/cs/datasets/planet/'
 RELOAD = False # re-generate features
-TRAIN_RELOAD_PATH = join(DS_DIR, 'train_reload.csv')
-TEST_RELOAD_PATH = join(DS_DIR, 'test_reload.csv')
 TRAIN_IMAGES = join(DS_DIR, 'original/train-jpg')
 TARGET_FOLDER = join(DS_DIR, 'binary')
 LABELS_PATH = join(DS_DIR, 'processed/train.csv')
@@ -90,15 +87,8 @@ def print_loss(preds, labels, loss='R2'):
     print '{} validation loss is {:.5f}'.format(loss, total)
 
 def generate_data():
-    if RELOAD:
-        train, test = import_clean(DS_DIR)
-        generate_features(train, test)
-        if TRAIN_RELOAD_PATH is not None and TEST_RELOAD_PATH is not None:
-            train.to_csv(TRAIN_RELOAD_PATH)
-            test.to_csv(TEST_RELOAD_PATH)
-    else:
-        train = pd.read_csv(TRAIN_RELOAD_PATH)
-        test = pd.read_csv(TEST_RELOAD_PATH)
+    train, test = import_clean(DS_DIR)
+    generate_features(train, test)
     return train, test
 
 
@@ -133,7 +123,7 @@ def run():
     t = time.time()
     start_time = t
 
-    print 'Importing and generating features...'
+    print 'Importing and generating features....'
     train, test = generate_data()
     print 'Finished in {:.2f} seconds.'.format(time.time()-t)
     t = time.time()

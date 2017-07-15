@@ -19,8 +19,8 @@ class VGG16(Model):
         self.model = None
         self.name = name
         self.labels = labels
-        if 'featurewise_center' in dict.keys() or 
-           'featurewise_std_normalization' in dict.keys() or 
+        if 'featurewise_center' in dict.keys() or \
+           'featurewise_std_normalization' in dict.keys() or \
            'zca_whitening' in dict.keys():
             print """Certain features for Keras data augmentation require all 
                   data to be loaded up front. Please disable and manually 
