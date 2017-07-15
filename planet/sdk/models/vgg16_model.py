@@ -38,18 +38,21 @@ class VGG16(Model):
         self.verbose = verbose
         self.num_test_images = num_test_images
         self.num_train_images = num_train_images
+        self.steps_per_epoch = num_train_images / batch_size + 1
 
 
     def train(self, X_trn, y_trn, X_val=None, y_val=None):
-        trn_generator = self.gen.flow_from_directory(X_trn, batch_size=self.batch_size)
+        trn_generator = self.gen.flow_from_directory(X_trn, batch_size=self.batch_size,
+                                                    target_size = (224, 224))
         #TODO make val_generator without data augmentation
         val_generator = None
         if X_val is not None:
-            val_generator = self.gen.flow_from_directory(X_val, batch_size=self.batch_size)
-        history = self.model.fit_generator(trn_generator, STEPS_PER_EPOCH, 
+            val_generator = self.gen.flow_from_directory(X_val, batch_size=self.batch_size,
+                                                        target_size = (224, 224))
+        history = self.model.fit_generator(trn_generator, self.steps_per_epoch, 
                                             epochs=self.num_epochs, verbose=self.verbose,
                                             validation_data = val_generator, 
-                                            validation_steps = STEPS_PER_EPOCH / 10)
+                                            validation_steps = self.steps_per_epoch / 10)
         return history
 
     def test(self, X_test, y_test=None):
@@ -99,6 +102,8 @@ def init_model(include_top=True, weights='imagenet',
     model.add(Dense(4096, activation='relu', name='fc1'))
     model.add(Dense(4096, activation='relu', name='fc2'))
     model.add(Dense(classes, activation='softmax', name='predictions'))
+
+    model.compile(loss='binary_crossentropy', optimizer=Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
         
     return model
    

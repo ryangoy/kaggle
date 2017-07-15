@@ -36,15 +36,15 @@ def generate_binary_data_structure(train_folder, target_folder, train_df, featur
     makedirs(negatives_dir)
     makedirs(positives_dir)
   
-    print train_df.head()
     # sort each picture into its respective directory
     for index, row in train_df.iterrows():
         if row[feature_name] == 1:
             dest_dir = positives_dir
         else:
             dest_dir = negatives_dir
-        copyfile(join(train_folder, row.image_name+extension), 
-                 join(target_folder, dest_dir))
+        filename = row.image_name+extension
+        copyfile(join(train_folder, filename), 
+                 join(target_folder, dest_dir, filename))
         
 def import_data():
     train = pd.read_csv(join(ds_dir, 'train.csv'))
