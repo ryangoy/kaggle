@@ -50,7 +50,7 @@ LABEL_NAME = 'y'
 ID_NAME = 'ID'
 NUM_FOLDS = 5
 SEED = 0
-SUBMISSION_PATH = '/home/ryan/cs/kaggle/planet/submissions/sub.csv'
+SUBMISSION_PATH = '/home/ryan/cs/kaggle/planet/submissions/raw_predictions.csv'
 DS_DIR = '/home/ryan/cs/datasets/planet/'
 RELOAD = False # re-generate features
 TRAIN_IMAGES = join(DS_DIR, 'original/train-jpg')
@@ -66,9 +66,17 @@ def initialize_models():
 
     Note: the length of the last level must be 1 (i.e. len(levels[-1]) == 1)
     """
-    models = [
-        VGG16(classes=2)
-    ]
+    models = []
+    augmentation_params = {
+        'rotation_range': 180,
+        'zoom_range': [1, 1.5],
+        'horizontal_flip': True,
+        'vertical_flip': True,
+    }
+    features = ['primary']
+    for feature in features:
+        models.append(VGG16(classes=2, num_epochs=1, name=feature,
+            augmentation_params=augmentation_params))
     return models
 
 def print_loss(preds, labels, loss='R2'):
@@ -99,7 +107,7 @@ def train_models(models, labels_df):
     """
     for model in models:
         print '\tMoving images...'
-        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, labels_df, 'primary',
+        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, labels_df, model.name,
                                        extension=IMAGE_EXTENSION)
         print '\tTraining {}...'.format(model.name)
         # history is easily graphable, not doing anything with this yet
@@ -110,13 +118,13 @@ def test_models(models, test):
     test_df = pd.DataFrame()
     for model in models:
         print '\tTesting {}...'.format(model.name)
-        test_df[model.name] = model.test(test)
+        test_df[model.name] = pd.Series(model.test(test), index=test_df.index)
         print '\tFinished testing {}.'.format(model.name)
     return test_df
 
 def write_submission(predictions):
     # TO DO
-    return
+    to_csv(SUBMISSION_PATH, index=True)
 
 # boilerplate code
 def run():
