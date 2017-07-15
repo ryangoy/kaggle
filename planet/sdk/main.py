@@ -67,7 +67,7 @@ def initialize_models():
     Note: the length of the last level must be 1 (i.e. len(levels[-1]) == 1)
     """
     models = [
-        VGG16()
+        VGG16(classes=2)
     ]
     return models
 
@@ -134,7 +134,7 @@ def run():
     t = time.time()
 
     print 'Training models...'
-    val_df = train_models(models, LABELS_PATH)
+    val_df = train_models(models, train)
     print 'Finished in {:2f} seconds'.format(time.time()-start_time)
 
     print 'Testing models...'

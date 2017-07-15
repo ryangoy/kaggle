@@ -30,14 +30,15 @@ def generate_binary_data_structure(train_folder, target_folder, train_df, featur
     # delete existing folders
     if exists(target_folder):
         rmtree(target_folder)
-    os.makedirs(target_folder)
+    makedirs(target_folder)
     negatives_dir = join(target_folder, 'not_'+feature_name)
     positives_dir = join(target_folder, feature_name)
-    os.makedirs(negatives_dir)
-    os.makedirs(positives_dir)
+    makedirs(negatives_dir)
+    makedirs(positives_dir)
   
+    print train_df.head()
     # sort each picture into its respective directory
-    for row in train_df:
+    for index, row in train_df.iterrows():
         if row[feature_name] == 1:
             dest_dir = positives_dir
         else:
