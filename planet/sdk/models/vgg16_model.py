@@ -16,8 +16,8 @@ class VGG16(Model):
     """
     VGG16 model. Uses Keras's 
     """
-    def __init__(self, name='VGG16', labels=None, num_epochs=10,
-                 batch_size=32, classes=17, verbose=1, 
+    def __init__(self, name='VGG16', labels=None, num_epochs=1,
+                 batch_size=32, classes=2, verbose=1, 
                  num_train_images=40479, num_test_images=61191,
                  augmentation_params={}):
         self.model = init_model(classes=classes, input_shape=(224, 224, 3))
@@ -38,7 +38,7 @@ class VGG16(Model):
         self.verbose = verbose
         self.num_test_images = num_test_images
         self.num_train_images = num_train_images
-        self.steps_per_epoch = num_train_images / batch_size + 1 
+        self.steps_per_epoch = num_train_images / batch_size/100+ 1 
 
 
     def train(self, X_trn, y_trn, X_val=None, y_val=None):
@@ -57,9 +57,10 @@ class VGG16(Model):
 
     def test(self, X_test, y_test=None):
         test_generator = self.gen.flow_from_directory(X_test, batch_size=self.batch_size, target_size = (224, 224))
-        num_steps = math.ceil(float(self.num_test_images)/self.batch_size+1)
+        num_steps = math.ceil(float(self.num_test_images)/self.batch_size/1000+1)
         predictions = self.model.predict_generator(test_generator, steps=num_steps)
-        return predictions
+        return predictions[:,0]
+
 def init_model(include_top=True, weights='imagenet',
           input_tensor=None, input_shape=None,
           pooling=None,
@@ -101,9 +102,9 @@ def init_model(include_top=True, weights='imagenet',
     model.add(Flatten(name='flatten'))
     model.add(Dense(4096, activation='relu', name='fc1'))
     model.add(Dense(4096, activation='relu', name='fc2'))
-    model.add(Dense(classes, activation='softmax', name='predictions'))
+    model.add(Dense(classes, activation='sigmoid', name='predictions'))
 
-    model.compile(loss='binary_crossentropy', optimizer=Adagrad(lr=0.01, epsilon=1e-08, decay=0.0), metrics=["accuracy"])
+    model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=["accuracy"])
         
     return model
    

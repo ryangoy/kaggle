@@ -68,14 +68,14 @@ def initialize_models():
     """
     models = []
     augmentation_params = {
-        'rotation_range': 180,
-        'zoom_range': [1, 1.5],
+        'rotation_range': 0,
+      #  'zoom_range': [1, 1.5],
         'horizontal_flip': True,
         'vertical_flip': True,
     }
-    features = ['primary']
+    features = ['clear', 'agriculture']
     for feature in features:
-        models.append(VGG16(classes=2, num_epochs=1, name=feature,
+        models.append(VGG16(classes=2, num_epochs=3, name=feature,
             augmentation_params=augmentation_params))
     return models
 
@@ -107,24 +107,26 @@ def train_models(models, labels_df):
     """
     for model in models:
         print '\tMoving images...'
-        generate_binary_data_structure(TRAIN_IMAGES, TARGET_FOLDER, labels_df, model.name,
+        generate_binary_data_structure(TRAIN_IMAGES, join(TARGET_FOLDER,'train'),
+                                       join(TARGET_FOLDER,'val'), labels_df, model.name,
                                        extension=IMAGE_EXTENSION)
-        print '\tTraining {}...'.format(model.name)
+        print '\tTraining {} binary classifier...'.format(model.name)
         # history is easily graphable, not doing anything with this yet
-        history = model.train(TARGET_FOLDER, None) 
+        history = model.train(join(TARGET_FOLDER,'train'), None,
+                                       X_val=join(TARGET_FOLDER,'val')) 
         print '\tFinished training {}.'.format(model.name)
 
 def test_models(models, test):
     test_df = pd.DataFrame()
     for model in models:
         print '\tTesting {}...'.format(model.name)
-        test_df[model.name] = pd.Series(model.test(test), index=test_df.index)
+        test_df[model.name] = pd.Series(model.test(test))
         print '\tFinished testing {}.'.format(model.name)
     return test_df
 
 def write_submission(predictions):
     # TO DO
-    to_csv(SUBMISSION_PATH, index=True)
+    predictions.to_csv(SUBMISSION_PATH, index=True)
 
 # boilerplate code
 def run():
