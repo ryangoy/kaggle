@@ -72,7 +72,6 @@ def initialize_models():
       #  'zoom_range': [1, 1.5],
         'horizontal_flip': True,
         'vertical_flip': True,
-        rescale=1. / 255,
     }
     features = ['clear', 'agriculture']
     for feature in features:
