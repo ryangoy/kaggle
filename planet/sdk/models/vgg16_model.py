@@ -32,8 +32,8 @@ class VGG16(Model):
                   data to be loaded up front. Please disable and manually 
                   implement the following features:
                   featurewise_center or featurewise_std_normalization or zca_whitening"""
-        self.gen = image.ImageDataGenerator(**augmentation_params)
-
+        self.train_gen = image.ImageDataGenerator(**augmentation_params, rescale=1. / 255)
+        self.test_gen = image.ImageDataGenerator(rescale=1. / 255)
         self.num_classes = classes
         self.verbose = verbose
         self.num_test_images = num_test_images
@@ -42,12 +42,12 @@ class VGG16(Model):
 
 
     def train(self, X_trn, y_trn, X_val=None, y_val=None):
-        trn_generator = self.gen.flow_from_directory(X_trn, batch_size=self.batch_size,
+        trn_generator = self.train_gen.flow_from_directory(X_trn, batch_size=self.batch_size,
                                                     target_size = (224, 224))
         #TODO make val_generator without data augmentation
         val_generator = None
         if X_val is not None:
-            val_generator = self.gen.flow_from_directory(X_val, batch_size=self.batch_size,
+            val_generator = self.test_gen.flow_from_directory(X_val, batch_size=self.batch_size,
                                                         target_size = (224, 224))
         history = self.model.fit_generator(trn_generator, self.steps_per_epoch, 
                                             epochs=self.num_epochs, verbose=self.verbose,
@@ -56,7 +56,7 @@ class VGG16(Model):
         return history
 
     def test(self, X_test, y_test=None):
-        test_generator = self.gen.flow_from_directory(X_test, batch_size=self.batch_size, target_size = (224, 224))
+        test_generator = self.test_gen.flow_from_directory(X_test, batch_size=self.batch_size, target_size = (224, 224))
         num_steps = math.ceil(float(self.num_test_images)/self.batch_size/1000+1)
         predictions = self.model.predict_generator(test_generator, steps=num_steps)
         return predictions[:,0]
