@@ -107,9 +107,9 @@ def train_models(models, labels_df):
     """
     for model in models:
         print '\tMoving images...'
-        generate_binary_data_structure(TRAIN_IMAGES, join(TARGET_FOLDER,'train'),
-                                       join(TARGET_FOLDER,'val'), labels_df, model.name,
-                                       extension=IMAGE_EXTENSION)
+        #generate_binary_data_structure(TRAIN_IMAGES, join(TARGET_FOLDER,'train'),
+        #                               join(TARGET_FOLDER,'val'), labels_df, model.name,
+        #                               extension=IMAGE_EXTENSION)
         print '\tTraining {} binary classifier...'.format(model.name)
         # history is easily graphable, not doing anything with this yet
         history = model.train(join(TARGET_FOLDER,'train'), None,
