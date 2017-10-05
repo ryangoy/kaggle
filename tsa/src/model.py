@@ -48,10 +48,10 @@ class TSANet:
   def init_model(self, input_shape, num_classes, num_lstm_hidden=512, learning_rate=0.01):
     """
     Args:
-      input_shape: tuple [timestep, height, width, channels]
+      input_shape: tuple [height, width, timesteps]
       num_classes: Number of label classes
     """
-    timesteps = input_shape[0]
+    timesteps = input_shape[-1]
     num_hidden_1 = 64
     num_hidden_2 = 128
     num_hidden_3 = 256
