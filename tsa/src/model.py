@@ -2,13 +2,15 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from operator import mul
+import random
 
 
 class TSANet:
   
-  def __init__(self, input_shape, num_classes):
+  def __init__(self, sess, input_shape, num_classes):
 
     # Defines self.x, self.y, self.model, self.cost, self.optimizer
+    self.sess = sess
     self.init_model(input_shape, num_classes)
 
   def conv2d(self, x, kshape, name='conv2d'):
@@ -52,39 +54,42 @@ class TSANet:
       num_classes: Number of label classes
     """
     timesteps = input_shape[-1]
-    num_hidden_1 = 64
-    num_hidden_2 = 128
-    num_hidden_3 = 256
-    num_hidden_4 = 512
+    num_hidden_1 = 4
+    num_hidden_2 = 8
+    num_hidden_3 = 8
+    num_hidden_4 = 8
 
     self.x = tf.placeholder(tf.float32, (None,) + input_shape)
     self.y = tf.placeholder(tf.float32, [None, num_classes])
-    
+
+    # Move timesteps to second dimension, i.e. batches, ts, width, height
+    x = tf.transpose(self.x, (0, 3, 1, 2))
+
     # Combine batch and timestep dimensions so we can run convolutions.
-    x = tf.reshape(self.x, (-1,) + input_shape[-3:])
-    x = self.conv2d(x, [3, 3, input_shape[-1], num_hidden_1], 'conv1_1')
-    x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_1], 'conv1_2')
-    x = self.max_pool(x, [1, 2, 2, 1], 'pool1')
+    x = tf.reshape(x, [-1] + x.shape[-2:].as_list() + [1])
+    x = self.conv2d(x, [3, 3, x.shape[-1].value, num_hidden_1], 'conv1_1')
+    #x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_1], 'conv1_2')
+    x = self.max_pool(x, [1, 4, 4, 1], 'pool1')
 
     x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_2], 'conv2_1')
-    x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_2], 'conv2_2')
-    x = self.max_pool(x, [1, 2, 2, 1], 'pool2')
+    #x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_2], 'conv2_2')
+    x = self.max_pool(x, [1, 4, 4, 1], 'pool2')
 
     x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_3], 'conv3_1')
-    x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_2')
-    x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_3')
-    x = self.max_pool(x, [1, 2, 2, 1], 'pool3')
+    #x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_2')
+    #x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_3')
+    x = self.max_pool(x, [1, 4, 4, 1], 'pool3')
 
     x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_4], 'conv4_1')
-    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_2')
-    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_3')
+    #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_2')
+    #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_3')
     x = self.max_pool(x, [1, 2, 2, 1], 'pool4')
 
     x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_1')
-    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_2')
-    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_3')
+    #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_2')
+    #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_3')
     x = self.max_pool(x, [1, 2, 2, 1], 'pool5')
-    
+
     conv_shape = x.shape[-3:].as_list()
     n_features = reduce(mul, conv_shape, 1)
 
@@ -94,7 +99,7 @@ class TSANet:
     forward_cell = tf.contrib.rnn.BasicLSTMCell(num_lstm_hidden)
     backward_cell = tf.contrib.rnn.BasicLSTMCell(num_lstm_hidden)
 
-    x = tf.unstack(x, input_shape[0], 1)
+    x = tf.unstack(x, timesteps, 1)
 
     outputs, _, _ = tf.contrib.rnn.static_bidirectional_rnn(forward_cell, backward_cell,
                                                               x, dtype=tf.float32)
@@ -106,28 +111,42 @@ class TSANet:
     self.cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.y, logits=self.model))
     self.optimizer = tf.train.AdamOptimizer(learning_rate).minimize(self.cost)
 
-  def train_val(self, X_trn, y_trn, X_val=None, y_val=None, epochs=10, batch_size=1,
+  def train_val(self, X, y, epochs=10, batch_size=1,
                 display_step=100):
     init = tf.global_variables_initializer()
+    self.sess.run(init)
+    indices = range(X.shape[0])
+    for epoch in range(epochs):
+      step = 0
+      for i in range(0, X.shape[0], batch_size):
+        
+        batch_x = X[i:i+batch_size]
+        batch_y = y[i:i+batch_size]
 
-    with tf.Session() as sess:
-      sess.run(init)
-      for epoch in range(epochs):
-        for step in range(int(X_trn.shape[0]/batch_size)):
-          batch_x, batch_y = self.get_next_batch(X_trn, y_trn, batch_size)
-          sess.run(self.optimizer, feed_dict={x: batch_x, y: batch_y})
+        self.sess.run(self.optimizer, feed_dict={self.x: batch_x, self.y: batch_y})
 
-          if step % display_step == 0:
-            loss, acc = sess.run([self.cost, self.accuracy], feed_dict={x: batch_x, y: batch_y})
-            print("Iter {}, Minibatch Loss={:.6f}, Training Accuracy={:.5f}.".format(step, loss, acc))
+        if step % display_step == 0 and step != 0:
+          loss, acc = self.sess.run([self.cost, self.accuracy], feed_dict={x: batch_x, y: batch_y})
+          print("Iter {}, Minibatch Loss={:.6f}, Training Accuracy={:.5f}.".format(step, loss, acc))
+        step += 1
 
-          
-        if X_val is not None and y_val is not None:
-          loss = sess.run(self.cost, feed_dict={x: X_val, y: y_val})
+      if X_val is not None and y_val is not None:
+        loss = self.sess.run(self.cost, feed_dict={self.x: X_val, self.y: y_val})
 
-        print("Epoch {}, Validation Loss={:6f}, Validation Accuracy={:.5f}.".format(loss, acc))
+      print("Epoch {}, Validation Loss={:6f}, Validation Accuracy={:.5f}.".format(loss, acc))
+
+  def infer(self, X_test, batch_size=1):
+    preds = []
+    for i in range(0, X_test.shape[0], batch_size):
+      pred = self.sess.run(self.model, feed_dict={self.x: X_test[i:i+batch_size]})
+      preds.append(pred)
+    preds = np.array(preds)
+    preds = preds.reshape((-1,) + preds.shape[2:])
+    return preds
 
 
 
+# Testing purposes only.
 if __name__ == '__main__':
-  TSANet((64, 512, 512, 1), 16)
+  with tf.Session as sess:
+    TSANet(sess, (64, 512, 512, 1), 16)

@@ -1,48 +1,80 @@
 import numpy as np
 import os
-from os.path import join, isfile
-from os import listdir
+from os.path import join, isfile, isdir
+from os import listdir, makedirs, remove
 import h5py
+import pandas as pd
+import ast
+import re
 
-def save_output
+def save_output(output_dir, output):
+  if not isdir(output_dir):
+    makedirs(output_dir)
 
-def load_data(path, h5_path, load_from_npy=True, batch_size=32):
-  if not load_from_npy or not isfile(h5_path):
+  # TODO: change this to save to csv file
+  np.save(output_dir, output)
+
+def load_data(path, labels_path, h5_path, load_from_h5=True, batch_size=32):
+  if not load_from_h5 or not isfile(h5_path):
     print('Loading data into hdf5 format...')
+    if isfile(h5_path):
+      remove(h5_path)
+    # Load labels.
+    labels_df = pd.read_csv(labels_path)
 
     # Save to hdf5 file in batches.
-    gen = data_gen(path, batch_size)
-    chunk = next(gen)
+    gen = data_gen(path, labels_df, batch_size)
+    chunk, labels_chunk = next(gen)
     sample_count = chunk.shape[0]
 
     with h5py.File(h5_path, 'w') as h5f:
       maxshape = (None,) + chunk.shape[1:]
+      labels_maxshape = (None,) + labels_chunk.shape[1:]
       dset = h5f.create_dataset('data', shape=chunk.shape, maxshape=maxshape,
                          chunks=chunk.shape, dtype=chunk.dtype)
+      ldset = h5f.create_dataset('labels', shape=labels_chunk.shape, maxshape=labels_maxshape,
+                        chunks=labels_chunk.shape, dtype=int)
       dset[:] = chunk
-      for chunk in gen:
+      ldset[:] = labels_chunk
+      for chunk, labels_chunk in gen:
         print ('{} samples successfully loaded.'.format(sample_count))
         dset.resize(sample_count + chunk.shape[0], axis=0)
+        ldset.resize(sample_count + labels_chunk.shape[0], axis=0)
         dset[sample_count:] = chunk
+        ldset[sample_count:] = labels_chunk
         sample_count += chunk.shape[0]
         
+  else:
+    print('Streaming data from pre-loaded hdf5 file.')
+  return h5py.File(h5_path, 'r')
 
-  return h5py.File(h5_path, 'r')['data']
-
-def data_gen(path, batch_size):
+def data_gen(path, labels_df, batch_size):
   data = []
+  labels = []
   i = 0
   paths = listdir(path)
   for f in paths:
+    fid = f.split('.')[0]
+    one_hot = labels_df[labels_df['Id'] == fid]['Label'].tolist()
+    # print fid
+    # print one_hot
+    if one_hot == []:
+      continue
+    one_hot = one_hot[0]
+    one_hot = re.sub('[.]', ',', one_hot)
+    one_hot = ast.literal_eval(one_hot)
     data.append(read_data(join(path, f)))
+    labels.append(one_hot)
     i += 1
     if i == batch_size or i == len(paths):
       # Yield batch.
       data = np.array(data)
-      yield data
+      labels = np.array(labels)
+      yield data, labels
 
       # Reset batch.
       data = []
+      labels = []
       i = 0
 
 def read_data(infile):
