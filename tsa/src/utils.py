@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from os.path import join, isfile, isdir
+import os.path
 from os import listdir, makedirs, remove
 import h5py
 import pandas as pd
@@ -13,6 +14,7 @@ def save_output(output_dir, output):
 
   # TODO: change this to save to csv file
   np.save(output_dir, output)
+
 
 def load_data(path, labels_path, h5_path, load_from_h5=True, batch_size=32):
   if not load_from_h5 or not isfile(h5_path):
