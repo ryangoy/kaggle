@@ -11,9 +11,9 @@ class TSANet:
 
     # Defines self.x, self.y, self.model, self.cost, self.optimizer
     self.sess = sess
-    self.init_model(input_shape, num_classes)
+    self.init_model(input_shape, num_classes, learning_rate=0.01)
 
-  def conv2d(self, x, kshape, name='conv2d'):
+  def conv2d(self, x, kshape, kstride=2, name='conv2d'):
     """
     Adds a conv2d layer to an unfinished graph x. 
  
@@ -22,9 +22,9 @@ class TSANet:
       kshape: a tuple with shape [conv_width, conv_height, input_features, output_features]
       name: name of layer
     """
-    W = tf.Variable(tf.truncated_normal(kshape, stddev=0.1))
+    W = tf.Variable(tf.truncated_normal(kshape, stddev=0.01))
     b = tf.Variable(tf.constant(0.1, shape=[kshape[-1]]))
-    conv = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding ='SAME', name=name)
+    conv = tf.nn.conv2d(x, W, strides=[1, kstride, kstride, 1], padding ='SAME', name=name)
     relu = tf.nn.relu(tf.nn.bias_add(conv, b))
     return relu
  
@@ -35,6 +35,7 @@ class TSANet:
       kshape: a tuple with shape [batch_step, width_step, height_step, feature_step]
       name: name of layer
     """
+
     return tf.nn.max_pool(x, ksize=kshape, strides=kshape, 
                           padding='SAME', name=name)
 
@@ -47,53 +48,54 @@ class TSANet:
   def dropout(self, x, keep_prob):
     return tf.nn.dropout(x, keep_prob)
 
-  def init_model(self, input_shape, num_classes, num_lstm_hidden=512, learning_rate=0.01):
+  def init_model(self, input_shape, num_classes, num_lstm_hidden=256, learning_rate=0.01):
     """
     Args:
       input_shape: tuple [height, width, timesteps]
       num_classes: Number of label classes
     """
     timesteps = input_shape[-1]
-    num_hidden_1 = 4
-    num_hidden_2 = 8
-    num_hidden_3 = 8
-    num_hidden_4 = 8
+    num_hidden_1 = 16
+    num_hidden_2 = 32
+    num_hidden_3 = 64
+    num_hidden_4 = 64
 
     self.x = tf.placeholder(tf.float32, (None,) + input_shape)
     self.y = tf.placeholder(tf.float32, [None, num_classes])
 
     # Move timesteps to second dimension, i.e. batches, ts, width, height
     x = tf.transpose(self.x, (0, 3, 1, 2))
-
     # Combine batch and timestep dimensions so we can run convolutions.
     x = tf.reshape(x, [-1] + x.shape[-2:].as_list() + [1])
-    x = self.conv2d(x, [3, 3, x.shape[-1].value, num_hidden_1], 'conv1_1')
+    x = self.conv2d(x, [3, 3, x.shape[-1].value, num_hidden_1], name='conv1_1')
+
     #x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_1], 'conv1_2')
-    x = self.max_pool(x, [1, 4, 4, 1], 'pool1')
+    #x = self.max_pool(x, [1, 2, 2, 1], 'pool1')
 
-    x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_2], 'conv2_1')
+    x = self.conv2d(x, [3, 3, num_hidden_1, num_hidden_2], name='conv2_1')
     #x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_2], 'conv2_2')
-    x = self.max_pool(x, [1, 4, 4, 1], 'pool2')
+    #x = self.max_pool(x, [1, 2, 2, 1], 'pool2')
 
-    x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_3], 'conv3_1')
+    x = self.conv2d(x, [3, 3, num_hidden_2, num_hidden_3], name='conv3_1')
     #x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_2')
     #x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_3], 'conv3_3')
-    x = self.max_pool(x, [1, 4, 4, 1], 'pool3')
+    #x = self.max_pool(x, [1, 2, 2, 1], 'pool3')
 
-    x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_4], 'conv4_1')
+    x = self.conv2d(x, [3, 3, num_hidden_3, num_hidden_4], name='conv4_1')
     #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_2')
     #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv4_3')
-    x = self.max_pool(x, [1, 2, 2, 1], 'pool4')
+    #x = self.max_pool(x, [1, 2, 2, 1], 'pool4')
 
-    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_1')
+    x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], name='conv5_1')
     #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_2')
     #x = self.conv2d(x, [3, 3, num_hidden_4, num_hidden_4], 'conv5_3')
-    x = self.max_pool(x, [1, 2, 2, 1], 'pool5')
+    #x = self.max_pool(x, [1, 2, 2, 1], 'pool5')
+
 
     conv_shape = x.shape[-3:].as_list()
     n_features = reduce(mul, conv_shape, 1)
 
-    # Split batches and timestep dimension.
+    # # Split batches and timestep dimension.
     x = tf.reshape(x, (-1, timesteps, n_features))
 
     forward_cell = tf.contrib.rnn.BasicLSTMCell(num_lstm_hidden)
@@ -105,35 +107,54 @@ class TSANet:
                                                               x, dtype=tf.float32)
 
     # Linear activation.
+    # outputs = [0, x[:, 0, :]]
     self.model = self.fc_layer(outputs[-1], num_classes)
 
     # Probability error for each class, which is assumed to be independent.
+
+    correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax((1+tf.exp(-self.model)), 1))
+    correct_prediction = tf.cast(correct_prediction, tf.float32)
+    self.accuracy = tf.reduce_mean(correct_prediction)
     self.cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.y, logits=self.model))
     self.optimizer = tf.train.AdamOptimizer(learning_rate).minimize(self.cost)
 
-  def train_val(self, X, y, epochs=10, batch_size=1,
-                display_step=100):
+  def train_val(self, X, y, epochs=10, batch_size=4,
+                display_step=100, split=0.9):
     init = tf.global_variables_initializer()
+
+    split_index = int(X.shape[0] * split)
+
     self.sess.run(init)
     indices = range(X.shape[0])
     for epoch in range(epochs):
       step = 0
+      loss = 0
+      acc = 0
       for i in range(0, X.shape[0], batch_size):
         
         batch_x = X[i:i+batch_size]
         batch_y = y[i:i+batch_size]
+        _, c, a, tps = self.sess.run([self.optimizer, self.cost, self.accuracy, self.model], feed_dict={self.x: batch_x, self.y: batch_y})
+        loss += c
+        acc += a
 
-        self.sess.run(self.optimizer, feed_dict={self.x: batch_x, self.y: batch_y})
 
         if step % display_step == 0 and step != 0:
-          loss, acc = self.sess.run([self.cost, self.accuracy], feed_dict={x: batch_x, y: batch_y})
-          print("Iter {}, Minibatch Loss={:.6f}, Training Accuracy={:.5f}.".format(step, loss, acc))
+          print("Epoch {} Iter {}/{}, Minibatch Loss={:.6f}, Training Accuracy={:.5f}.".format(epoch, step, int(X.shape[0]/batch_size), loss/display_step, acc/display_step))
+          loss = 0
+          acc = 0
+          # print 1/ (1+np.exp(-tps))
+          # print batch_y
+          # if X_val is not None and y_val is not None:
+
+          #   val_preds, loss = self.sess.run([self.model, self.cost], feed_dict={self.x: X_val, self.y: y_val})
+          #   print val_preds
         step += 1
 
-      if X_val is not None and y_val is not None:
-        loss = self.sess.run(self.cost, feed_dict={self.x: X_val, self.y: y_val})
+      
 
-      print("Epoch {}, Validation Loss={:6f}, Validation Accuracy={:.5f}.".format(loss, acc))
+
+      # print("Epoch {}, Validation Loss={:6f}, Validation Accuracy={:.5f}.".format(loss, acc))
 
   def infer(self, X_test, batch_size=1):
     preds = []

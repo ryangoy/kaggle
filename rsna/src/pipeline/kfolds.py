@@ -24,6 +24,14 @@ class KFold:
     self.curr_fold = 0
 
 
-  def get_fold(fold_id):
-    return self.image_folds[fold_id], self.metadata_folds[fold_id], self.label_folds[fold_id]
+  def get_trn_fold(self, fold_id):
+    images = [i for i in self.image_folds if i != fold_id]
+    metadata = [i for i in self.metadata_folds if i != fold_id]
+    labels = [i for i in self.label_folds if i != fold_id]
+    return images, metadata, labels
     
+
+  def get_val_fold(self, fold_id):
+    return self.image_folds[fold_id], self.metadata_folds[fold_id], self.label_folds[fold_id]
+
+

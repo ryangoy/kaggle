@@ -13,8 +13,9 @@ DATA_H5     = join(DATADIR, 'train_data.h5')
 OUTPUT      = join(DATADIR, 'preds.npy')
 NUM_CLASSES = 17
 NUM_EPOCHS  = 10
-BATCH_SIZE  = 2
-DISPLAY_STEP= 1
+BATCH_SIZE  = 4
+DISPLAY_STEP= 10
+TV_SPLIT    = 0.9
 
 def main():
   # Load data.
@@ -29,7 +30,7 @@ def main():
 
     # Train and validate.
     tsanet.train_val(data['data'], data['labels'], epochs=NUM_EPOCHS, batch_size=BATCH_SIZE,
-                display_step=DISPLAY_STEP)
+                display_step=DISPLAY_STEP, split=TV_SPLIT)
 
     # Test.
     # preds = tsanet.infer()
