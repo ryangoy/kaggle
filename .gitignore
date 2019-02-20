@@ -8,5 +8,6 @@
 *.tif
 *.tar
 *.gz
+*.h5
 .ipynb_checkpoints
 paths.py

@@ -1,4 +1,4 @@
-
+import keras
 from keras.models import Model, load_model, save_model
 from keras.layers import Input,Dropout,BatchNormalization,Activation,Add
 from keras.layers.core import Lambda
@@ -24,8 +24,13 @@ class ResNetModel:
 	def __init__(self, input_shape, start_neurons, dropout = 0.5):
 		
 		self.model = build_model(input_shape, start_neurons, dropout)
-		self.model.compile(optimizer='adam', loss=iou_bce_loss, metrics=['accuracy', mean_iou])
+		c = optimizers.adam(lr=0.01)
+		self.model.compile(optimizer=c, loss=iou_bce_loss, metrics=['accuracy', mean_iou])
 		self.learning_rate = tf.keras.callbacks.LearningRateScheduler(cosine_annealing)
+		#keras.backend.get_session().run(tf.global_variables_initializer())
+
+	def train(self, trn_gen, val_gen, epochs=10):
+		self.model.fit_generator(trn_gen, validation_data=val_gen, callbacks=[self.learning_rate], epochs=epochs, workers=4, use_multiprocessing=True)
 
 
 

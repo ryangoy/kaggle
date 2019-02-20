@@ -1,14 +1,36 @@
-import argparse
 import keras
+from keras.models import Model, load_model, save_model
+from keras.layers import Input,Dropout,BatchNormalization,Activation,Add
+from keras.layers.core import Lambda
+from keras.layers.convolutional import Conv2D, Conv2DTranspose
+from keras.layers.pooling import MaxPooling2D
+from keras.layers.merge import concatenate
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from keras import backend as K
+from keras import optimizers
+
+import os
+import sys
+import random
+
+import pandas as pd
 import numpy as np
-from pipeline.train import train_kfold
-from pipeline.load_data import load_trn_data, load_test_data, load_trn_metadata, load_test_metadata
-# from model.resnet import ResNetModel
-# from model.naive_res import NaiveResNetModel, create_network, cosine_annealing, iou_bce_loss, mean_iou
+
 import tensorflow as tf
 
-TRN_IMAGES_PATH = '/home/ryan/cs/datasets/rsna/stage_1_train_images'
-TRN_LABELS_PATH = '/home/ryan/cs/datasets/rsna/stage_1_train_labels.csv'
+
+class NaiveResNetModel:
+
+    def __init__(self, input_shape, start_neurons, dropout = 0.5):
+        self.model = create_network(input_size=256, channels=32, n_blocks=2, depth=4)
+        self.model.compile(optimizer='adam',
+              loss=iou_bce_loss,
+              metrics=['accuracy', mean_iou])
+
+        self.learning_rate = tf.keras.callbacks.LearningRateScheduler(cosine_annealing)
+
+    def train(self, trn_gen, val_gen, epochs=10):
+        self.model.fit_generator(trn_gen, validation_data=val_gen, callbacks=[self.learning_rate], epochs=epochs, workers=4, use_multiprocessing=True) 
 
 
 def create_downsample(channels, inputs):
@@ -45,8 +67,7 @@ def create_network(input_size, channels, n_blocks=2, depth=4):
     model = keras.Model(inputs=inputs, outputs=outputs)
     return model
 
-
-# define iou or jaccard loss function# defin 
+# define iou or jaccard loss function
 def iou_loss(y_true, y_pred):
     y_true = tf.reshape(y_true, [-1])
     y_pred = tf.reshape(y_pred, [-1])
@@ -73,30 +94,3 @@ def cosine_annealing(x):
     lr = 0.001
     epochs = 25
     return lr*(np.cos(np.pi*x/epochs)+1.)/2
-
-def main(args):
-	trn_gen, val_gen = load_trn_data(TRN_IMAGES_PATH, TRN_LABELS_PATH)
-
-	# model = NaiveResNetModel((256, 256, 1), 32)
-
-	# model.train(trn_gen, val_gen, epochs=10)
-
-	model = create_network(input_size=256, channels=32, n_blocks=2, depth=4)
-	model.compile(optimizer='adam',
-	              loss=iou_bce_loss,
-	              metrics=['accuracy', mean_iou])
-
-	learning_rate = tf.keras.callbacks.LearningRateScheduler(cosine_annealing)
-
-	history = model.fit_generator(trn_gen, validation_data=val_gen, callbacks=[learning_rate], epochs=25, workers=4, use_multiprocessing=True)
-
-
-
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	
-	parser.add_argument('-e', '--epochs', default='10', type=int)
-
-	args = parser.parse_args()
-
-	main(args)

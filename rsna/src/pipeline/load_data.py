@@ -10,104 +10,112 @@ from skimage.transform import resize
 
 import tensorflow as tf
 from tensorflow import keras
-
+import keras
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 
-def load_trn_data(images_path='/home/ryan/cs/datasets/rsna/stage_1_train_images', labels_path='/home/ryan/cs/datasets/rsna/stage_1_train_labels.csv'):
+def load_trn_data(images_path, labels_path, val_split=0.1):
 
-	# empty dictionary
-	pneumonia_locations = {}
-	# load table
-	with open(labels_path, mode='r') as infile:
-	    # open reader
-	    reader = csv.reader(infile)
-	    # skip header
-	    next(reader, None)
-	    # loop through rows
-	    for rows in reader:
-	        # retrieve information
-	        filename = rows[0]
-	        location = rows[1:5]
-	        pneumonia = rows[5]
-	        # if row contains pneumonia add label to dictionary
-	        # which contains a list of pneumonia locations per filename
-	        if pneumonia == '1':
-	            # convert string to float to int
-	            location = [int(float(i)) for i in location]
-	            # save pneumonia location in dictionary
-	            if filename in pneumonia_locations:
-	                pneumonia_locations[filename].append(location)
-	            else:
-	                pneumonia_locations[filename] = [location]
-
-
-	# load and shuffle filenames
-	folder = images_path
-	filenames = os.listdir(folder)
-	random.shuffle(filenames)
+    # empty dictionary
+    pneumonia_locations = {}
+    # load table
+    with open(labels_path, mode='r') as infile:
+        # open reader
+        reader = csv.reader(infile)
+        # skip header
+        next(reader, None)
+        # loop through rows
+        for rows in reader:
+            # retrieve information
+            filename = rows[0]
+            location = rows[1:5]
+            pneumonia = rows[5]
+            # if row contains pneumonia add label to dictionary
+            # which contains a list of pneumonia locations per filename
+            if pneumonia == '1':
+                # convert string to float to int
+                location = [int(float(i)) for i in location]
+                # save pneumonia location in dictionary
+                if filename in pneumonia_locations:
+                    pneumonia_locations[filename].append(location)
+                else:
+                    pneumonia_locations[filename] = [location]
 
 
-	return filenames, pneumonia_locations
+    # load and shuffle filenames
+    folder = images_path
+    filenames = os.listdir(folder)
+    random.shuffle(filenames)
+
+    split_index = int((1-val_split)*len(filenames))
+
+    trn_filenames = filenames[:split_index]
+    val_filenames = filenames[split_index:]
+
+
+    trn_gen = RSNAGenerator(folder, trn_filenames, pneumonia_locations, batch_size=32, image_size=256, shuffle=True, augment=True, predict=False)
+    val_gen = RSNAGenerator(folder, val_filenames, pneumonia_locations, batch_size=32, image_size=256, shuffle=False, predict=False)
+
+    return trn_gen, val_gen
 
 def load_test_data(path='/home/ryan/cs/datasets/rsna/stage_1_test_images'):
-	# load and shuffle filenames
-	
-	filenames = os.listdir(path)
+    # load and shuffle filenames
+    
+    filenames = os.listdir(path)
 
-	return filenames
+    return filenames
 
 
 def load_trn_metadata():
-	labels = pd.read_csv('/home/ryan/cs/datasets/rsna/stage_1_train_labels.csv')
-	details = pd.read_csv('/home/ryan/cs/datasets/rsna/stage_1_detailed_class_info.csv')
-	# duplicates in details just have the same class so can be safely dropped
-	details = details.drop_duplicates('patientId').reset_index(drop=True)
-	labels_w_class = labels.merge(details, how='inner', on='patientId')
+    labels = pd.read_csv('/home/ryan/cs/datasets/rsna/stage_1_train_labels.csv')
+    details = pd.read_csv('/home/ryan/cs/datasets/rsna/stage_1_detailed_class_info.csv')
+    # duplicates in details just have the same class so can be safely dropped
+    details = details.drop_duplicates('patientId').reset_index(drop=True)
+    labels_w_class = labels.merge(details, how='inner', on='patientId')
 
-	train_dcm_fps = glob.glob('/home/ryan/cs/datasets/rsna/stage_1_train_images/*.dcm')
-	train_dcms = [pydicom.read_file(x, stop_before_pixels=True) for x in train_dcm_fps]
-	train_meta_dicts, tag_to_keyword_train = zip(*[parse_dcm_metadata(x) for x in train_dcms])
-	unified_tag_to_key_train = {k:v for dict_ in tag_to_keyword_train for k,v in dict_.items()}
-	train_df = pd.DataFrame.from_records(data=train_meta_dicts)
+    train_dcm_fps = glob.glob('/home/ryan/cs/datasets/rsna/stage_1_train_images/*.dcm')
+    train_dcms = [pydicom.read_file(x, stop_before_pixels=True) for x in train_dcm_fps]
+    train_meta_dicts, tag_to_keyword_train = zip(*[parse_dcm_metadata(x) for x in train_dcms])
+    unified_tag_to_key_train = {k:v for dict_ in tag_to_keyword_train for k,v in dict_.items()}
+    train_df = pd.DataFrame.from_records(data=train_meta_dicts)
 
-	train_df = clean_metadata(train_df)
-	return train_df
+    train_df = clean_metadata(train_df)
+    return train_df
 
 def load_test_metadata():
-	test_dcm_fps = glob.glob('/home/ryan/cs/datasets/rsna/stage_1_test_images/*.dcm')
-	test_dcms = [pydicom.read_file(x, stop_before_pixels=True) for x in test_dcm_fps]
-	test_meta_dicts, tag_to_keyword_test = zip(*[parse_dcm_metadata(x) for x in test_dcms])
-	unified_tag_to_key_test = {k:v for dict_ in tag_to_keyword_test for k,v in dict_.items()}
-	test_df = pd.DataFrame.from_records(data=test_meta_dicts)
-	test_df['PixelSpacing_x'] = df['PixelSpacing'].apply(lambda x: x[0])
-	test_df['PixelSpacing_y'] = df['PixelSpacing'].apply(lambda x: x[1])
-	test_df = df.drop(['PixelSpacing'], axis='columns')
-	assert sum(train_df['ReferringPhysicianName'] != '') == 0
-	set(test_df['SeriesDescription'].unique())
+    test_dcm_fps = glob.glob('/home/ryan/cs/datasets/rsna/stage_1_test_images/*.dcm')
+    test_dcms = [pydicom.read_file(x, stop_before_pixels=True) for x in test_dcm_fps]
+    test_meta_dicts, tag_to_keyword_test = zip(*[parse_dcm_metadata(x) for x in test_dcms])
+    unified_tag_to_key_test = {k:v for dict_ in tag_to_keyword_test for k,v in dict_.items()}
+    test_df = pd.DataFrame.from_records(data=test_meta_dicts)
+    test_df['PixelSpacing_x'] = df['PixelSpacing'].apply(lambda x: x[0])
+    test_df['PixelSpacing_y'] = df['PixelSpacing'].apply(lambda x: x[1])
+    test_df = df.drop(['PixelSpacing'], axis='columns')
+    assert sum(train_df['ReferringPhysicianName'] != '') == 0
+    set(test_df['SeriesDescription'].unique())
 
-	test_df = clean_metadata(test_df)
-	return test_df
+    test_df = clean_metadata(test_df)
+    return test_df
 
 def clean_metadata(df):
 
-	df['PixelSpacing_x'] = df['PixelSpacing'].apply(lambda x: x[0])
-	df['PixelSpacing_y'] = df['PixelSpacing'].apply(lambda x: x[1])
-	df = df.drop(['PixelSpacing'], axis='columns')
-	assert sum(df['ReferringPhysicianName'] != '') == 0
-	# drop constant cols and other two from above
-	df = df.drop(nunique_all[nunique_all == 1].index.tolist() + ['ReferringPhysicianName', 'SeriesDescription'], axis='columns')
+    df['PixelSpacing_x'] = df['PixelSpacing'].apply(lambda x: x[0])
+    df['PixelSpacing_y'] = df['PixelSpacing'].apply(lambda x: x[1])
+    df = df.drop(['PixelSpacing'], axis='columns')
+    assert sum(df['ReferringPhysicianName'] != '') == 0
+    # drop constant cols and other two from above
+    df = df.drop(nunique_all[nunique_all == 1].index.tolist() + ['ReferringPhysicianName', 'SeriesDescription'], axis='columns')
 
-	# now that we have a clean metadata dataframe we can merge back to our initial tabular data with target and class info
-	df = df.merge(labels_w_class, how='left', left_on='PatientID', right_on='patientId')
+    # now that we have a clean metadata dataframe we can merge back to our initial tabular data with target and class info
+    df = df.merge(labels_w_class, how='left', left_on='PatientID', right_on='patientId')
 
-	df['PatientAge'] = df['PatientAge'].astype(int)
+    df['PatientAge'] = df['PatientAge'].astype(int)
 
-	# df now has multiple rows for some patients (those with multiple bounding boxes in label_w_class)
-	# so creating one with no duplicates for patients
-	df_deduped = df.drop_duplicates('PatientID', keep='first')
+    # df now has multiple rows for some patients (those with multiple bounding boxes in label_w_class)
+    # so creating one with no duplicates for patients
+    df_deduped = df.drop_duplicates('PatientID', keep='first')
 
-	return df
+    return df
 
 def parse_dcm_metadata(dcm):
     unpacked_data = {}
