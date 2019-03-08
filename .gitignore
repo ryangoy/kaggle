@@ -1,3 +1,5 @@
+*.model
+*.npz
 *.zip
 *.csv
 *.png
